@@ -1,5 +1,6 @@
 import { useAuth } from "./lib/useAuth";
 import { SignInButton } from "./components/SignInButton";
+import { TeamSetup } from "./components/TeamSetup";
 
 function App() {
   const { user, loading } = useAuth();
@@ -13,7 +14,7 @@ function App() {
       <h1>One and Done League</h1>
       <SignInButton user={user} />
       {!user && <p>Sign in with Google to set up or manage your team.</p>}
-      {user && <p>Signed in — team setup goes here next.</p>}
+      {user && <TeamSetup user={user} />}
     </div>
   );
 }
