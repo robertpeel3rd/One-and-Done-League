@@ -24,6 +24,21 @@ function lineupDocId(teamId, week) {
   return `${teamId}_${week}`;
 }
 
+function isGameStarted(kickoffTime) {
+  if (!kickoffTime) return false;
+  return Date.now() >= new Date(kickoffTime).getTime();
+}
+
+function formatKickoffET(kickoffTime) {
+  if (!kickoffTime) return null;
+  return new Date(kickoffTime).toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function RosterBuilder({ team }) {
   const { week, loading: weekLoading } = useCurrentWeek();
   const [players, setPlayers] = useState([]);
@@ -40,14 +55,12 @@ export function RosterBuilder({ team }) {
     }
     loadPlayers();
   }, []);
-
   useEffect(() => {
     if (weekLoading || !week) return;
     async function loadLineups() {
       setLoading(true);
       const q = query(collection(db, "lineups"), where("teamId", "==", team.id));
       const snap = await getDocs(q);
-
       const used = new Set();
       let thisWeekSlots = {};
       snap.docs.forEach((d) => {
@@ -58,7 +71,6 @@ export function RosterBuilder({ team }) {
           thisWeekSlots = slots;
         }
       });
-
       setUsedPlayerIds(used);
       setCurrentSlots(thisWeekSlots);
       setLoading(false);
@@ -70,14 +82,21 @@ export function RosterBuilder({ team }) {
     const newSlots = { ...currentSlots, [slotIndex]: playerId };
     setCurrentSlots(newSlots);
     setUsedPlayerIds((prev) => new Set(prev).add(playerId));
-
     const ref = doc(db, "lineups", lineupDocId(team.id, week));
     await setDoc(ref, { teamId: team.id, week, slots: newSlots }, { merge: true });
     setPickerSlot(null);
     setSearchTerm("");
   }
 
+  function isLockedIn(slotIndex) {
+    const pid = currentSlots[slotIndex];
+    if (!pid) return false;
+    const player = players.find((p) => p.id === pid);
+    return player && isGameStarted(player.kickoffTime);
+  }
+
   async function clearSlot(slotIndex) {
+    if (isLockedIn(slotIndex)) return;
     const clearedPlayerId = currentSlots[slotIndex];
     const newSlots = { ...currentSlots };
     delete newSlots[slotIndex];
@@ -89,7 +108,6 @@ export function RosterBuilder({ team }) {
         return next;
       });
     }
-
     const ref = doc(db, "lineups", lineupDocId(team.id, week));
     await updateDoc(ref, { [`slots.${slotIndex}`]: deleteField() }).catch(() => {});
   }
@@ -106,8 +124,9 @@ export function RosterBuilder({ team }) {
           ([idx, pid]) => pid === p.id && Number(idx) !== pickerSlot
         );
         const usedInPastWeek = usedPlayerIds.has(p.id) && currentSlots[pickerSlot] !== p.id;
-        const locked = usedElsewhereThisWeek || usedInPastWeek;
-        return { ...p, locked };
+        const gameStarted = isGameStarted(p.kickoffTime);
+        const locked = usedElsewhereThisWeek || usedInPastWeek || gameStarted;
+        return { ...p, locked, gameStarted };
       })
       .sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)))
       .slice(0, 100);
@@ -117,12 +136,15 @@ export function RosterBuilder({ team }) {
 
   return (
     <div style={{ maxWidth: 480 }}>
-      <p style={{ color: "var(--text-secondary, #666)", marginBottom: 8 }}>Week {week}</p>
+      <p style={{ color: "var(--text-secondary, #666)", marginBottom: 8 }}>
+        Week {week}
+      </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
         {SLOTS.map((pos, idx) => {
           const pid = currentSlots[idx];
           const player = players.find((p) => p.id === pid);
+          const locked = isLockedIn(idx);
           return (
             <div
               key={idx}
@@ -136,21 +158,30 @@ export function RosterBuilder({ team }) {
               }}
             >
               <div>
-                <span style={{ fontSize: 12, color: "var(--text-secondary, #666)", marginRight: 8 }}>{pos}</span>
+                <span style={{ fontSize: 12, color: "var(--text-secondary, #666)", marginRight: 8 }}>
+                  {pos}
+                </span>
                 {player ? (
                   <span>
                     {player.name}{" "}
-                    <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>({player.team})</span>
+                    <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>
+                      ({player.team})
+                    </span>
+                    {locked && (
+                      <span style={{ color: "var(--text-danger, #a32d2d)", fontSize: 11, marginLeft: 6 }}>
+                        locked
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <span style={{ color: "var(--text-muted, #888)" }}>empty</span>
                 )}
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => { setPickerSlot(idx); setSearchTerm(""); }}>
+                <button onClick={() => { setPickerSlot(idx); setSearchTerm(""); }} disabled={locked}>
                   {player ? "swap" : "pick"}
                 </button>
-                {player && <button onClick={() => clearSlot(idx)}>clear</button>}
+                {player && <button onClick={() => clearSlot(idx)} disabled={locked}>clear</button>}
               </div>
             </div>
           );
@@ -175,7 +206,10 @@ export function RosterBuilder({ team }) {
                 style={{ textAlign: "left", opacity: p.locked ? 0.4 : 1 }}
               >
                 {p.name}{" "}
-                <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>{p.pos} · {p.team}</span>
+                <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>
+                  {p.pos} · {p.team}
+                  {!p.gameStarted && p.kickoffTime && ` · ${formatKickoffET(p.kickoffTime)} ET`}
+                </span>
               </button>
             ))}
             {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted, #888)" }}>No matches.</p>}
