@@ -24,6 +24,10 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+     match /liveScores/{playerId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
 
     match /lineups/{lineupId} {
       allow read: if request.auth != null;

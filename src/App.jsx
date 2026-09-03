@@ -4,16 +4,18 @@ import { useAuth } from "./lib/useAuth";
 import { SignInButton } from "./components/SignInButton";
 import { TeamSetup } from "./components/TeamSetup";
 import { RosterBuilder } from "./components/RosterBuilder";
-import { LeagueTable } from "./components/LeagueTable";
+import { Standings } from "./components/Standings";
+import { WeeklyScoring } from "./components/WeeklyScoring";
+import { Teams } from "./components/Teams";
 import { UsedPlayers } from "./components/UsedPlayers";
 import { CommissionerTab } from "./components/CommissionerTab";
 
-const TABS = ["League Table", "Set Lineup", "Used Players", "Commissioner"];
+const TABS = ["Standings", "Weekly Scoring", "Teams", "My Lineup", "Used Players", "Commissioner"];
 
 function App() {
   const { user, loading } = useAuth();
   const [team, setTeam] = useState(null);
-  const [activeTab, setActiveTab] = useState("League Table");
+  const [activeTab, setActiveTab] = useState("Standings");
 
   if (loading) {
     return <p style={{ padding: "1rem" }}>Loading...</p>;
@@ -59,8 +61,10 @@ function App() {
                 ))}
               </div>
 
-              {activeTab === "League Table" && <LeagueTable />}
-              {activeTab === "Set Lineup" && <RosterBuilder team={team} />}
+              {activeTab === "Standings" && <Standings />}
+              {activeTab === "Weekly Scoring" && <WeeklyScoring />}
+              {activeTab === "Teams" && <Teams />}
+              {activeTab === "My Lineup" && <RosterBuilder team={team} />}
               {activeTab === "Used Players" && <UsedPlayers team={team} />}
               {activeTab === "Commissioner" && <CommissionerTab user={user} />}
             </>
