@@ -6,7 +6,7 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 const REFRESH_INTERVAL_MS = 30000;
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
-export function Teams() {
+export function Teams({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [teams, setTeams] = useState([]);
@@ -82,7 +82,7 @@ export function Teams() {
   return (
     <div style={{ maxWidth: 480 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 13, color: "var(--text-secondary, #666)" }}>Week</span>
+        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
         <select value={selectedWeek} onChange={(e) => setSelectedWeek(Number(e.target.value))}>
           {weekOptions.map((w) => (
             <option key={w} value={w}>{w}</option>
@@ -90,34 +90,58 @@ export function Teams() {
         </select>
       </div>
 
-      <p style={{ fontSize: 13, color: "var(--text-secondary, #666)", marginTop: 0 }}>
-        Ranked by Week {selectedWeek} raw points
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
+        Ranked by Week {selectedWeek} Weekly Points
         {selectedWeek === currentWeek ? ", updates automatically." : "."}
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {teamRows.map(({ team, slotEntries, total }, i) => (
-          <div
-            key={team.id}
-            style={{
-              background: "var(--surface-1, #f5f5f5)",
-              borderRadius: "var(--radius, 6px)",
-              padding: "0.5rem 0.7rem",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, marginBottom: 4 }}>
-              <span>{i + 1}. {team.name}</span>
-              <span>{total} pts</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary, #666)", lineHeight: 1.6 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {teamRows.map(({ team, slotEntries, total }, i) => {
+          const isMine = team.id === myTeamId;
+          return (
+            <div
+              key={team.id}
+              style={{
+                borderRadius: "var(--radius)",
+                overflow: "hidden",
+                border: "0.5px solid var(--border)",
+              }}
+            >
+              <div
+                style={{
+                  padding: "0.6rem 0.9rem",
+                  fontWeight: 600,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
+                  color: isMine ? "var(--text-accent)" : "inherit",
+                }}
+              >
+                <span>{i + 1}. {team.name}</span>
+                <span>{total} pts</span>
+              </div>
               {slotEntries.map((s, idx) => (
-                <span key={idx} style={{ marginRight: 10 }}>
-                  {s.pos} {s.player ? `${s.player.name.split(" ").slice(-1)[0]} ${s.pts}` : "—"}
-                </span>
+                <div
+                  key={idx}
+                  style={{
+                    padding: "0.4rem 0.9rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    borderTop: "0.5px solid var(--border)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <span>
+                    <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.pos}</span>{" "}
+                    {s.player ? s.player.name.split(" ").slice(-1)[0] : "—"}
+                  </span>
+                  <span>{s.pts}</span>
+                </div>
               ))}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

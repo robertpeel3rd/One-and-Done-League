@@ -6,43 +6,76 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden; /* prevents accidental horizontal scroll on small screens */
+  overflow-x: hidden;
+}
+
+:root {
+  --surface-2: #ffffff;
+  --surface-1: #f5f5f5;
+  --surface-0: #ffffff;
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --border: #dddddd;
+  --border-strong: #bbbbbb;
+  --radius: 8px;
+  --bg-accent: #e6f1fb;
+  --text-accent: #185fa5;
+  --text-danger: #a32d2d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-2: #1a1a1a;
+    --surface-1: #232323;
+    --surface-0: #0f0f0f;
+    --text-primary: #f2f2f2;
+    --text-secondary: #b0b0b0;
+    --text-muted: #808080;
+    --border: #2e2e2e;
+    --border-strong: #3a3a3a;
+    --bg-accent: #1c2b45;
+    --text-accent: #85b7eb;
+    --text-danger: #e29494;
+  }
 }
 
 body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  -webkit-text-size-adjust: 100%; /* stops iOS auto-zooming text on rotate */
+  -webkit-text-size-adjust: 100%;
+  background: var(--surface-0);
+  color: var(--text-primary);
 }
 
 input,
 select,
 button {
-  font-size: 16px; /* anything smaller triggers iOS Safari's zoom-on-focus */
+  font-size: 16px;
   padding: 0.6rem 0.7rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 button {
-  min-height: 44px; /* Apple's recommended minimum comfortable tap target */
+  min-height: 44px;
   cursor: pointer;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
 }
 
 button:disabled {
   cursor: not-allowed;
+  opacity: 0.5;
 }
 
 button:active:not(:disabled) {
-  background: #e0e0e0;
+  opacity: 0.85;
 }
 
 a {
   color: inherit;
 }
 
-/* Keeps layout readable on very narrow phones (e.g. older iPhone SE at 320px) */
 @media (max-width: 360px) {
   h1 {
     font-size: 1.4rem;

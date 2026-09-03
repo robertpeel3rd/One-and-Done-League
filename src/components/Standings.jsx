@@ -5,7 +5,7 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 
 const REFRESH_INTERVAL_MS = 30000;
 
-export function Standings() {
+export function Standings({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
   const [mode, setMode] = useState("current");
   const [teams, setTeams] = useState([]);
@@ -126,19 +126,32 @@ export function Standings() {
         </button>
       </div>
 
-      <p style={{ fontSize: 13, color: "var(--text-secondary, #666)", marginTop: 0 }}>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
         {mode === "current"
           ? `League Points from completed weeks (through Week ${currentWeek - 1 || 0}).`
           : `League Points through completed weeks, plus what Week ${currentWeek} would add if it ended right now. Updates automatically.`}
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {standings.map((t, i) => (
-          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.7rem", background: "var(--surface-1, #f5f5f5)", borderRadius: "var(--radius, 6px)" }}>
-            <span>{i + 1}. {t.name}</span>
-            <span style={{ fontWeight: 500 }}>{t.leaguePoints} League Points</span>
-          </div>
-        ))}
+        {standings.map((t, i) => {
+          const isMine = t.id === myTeamId;
+          return (
+            <div
+              key={t.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "0.5rem 0.7rem",
+                background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
+                color: isMine ? "var(--text-accent)" : "inherit",
+                borderRadius: "var(--radius)",
+              }}
+            >
+              <span>{i + 1}. {t.name}</span>
+              <span style={{ fontWeight: 500 }}>{t.leaguePoints} League Points</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

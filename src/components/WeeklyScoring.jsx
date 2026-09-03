@@ -5,7 +5,7 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 
 const REFRESH_INTERVAL_MS = 30000;
 
-export function WeeklyScoring() {
+export function WeeklyScoring({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [teams, setTeams] = useState([]);
@@ -67,7 +67,7 @@ export function WeeklyScoring() {
   return (
     <div style={{ maxWidth: 480 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 13, color: "var(--text-secondary, #666)" }}>Week</span>
+        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
         <select value={selectedWeek} onChange={(e) => setSelectedWeek(Number(e.target.value))}>
           {weekOptions.map((w) => (
             <option key={w} value={w}>{w}</option>
@@ -75,18 +75,31 @@ export function WeeklyScoring() {
         </select>
       </div>
 
-      <p style={{ fontSize: 13, color: "var(--text-secondary, #666)", marginTop: 0 }}>
-        Raw fantasy points for Week {selectedWeek}
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
+        Weekly Points for Week {selectedWeek}
         {selectedWeek === currentWeek ? ", updated automatically." : "."}
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {standings.map((t, i) => (
-          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.7rem", background: "var(--surface-1, #f5f5f5)", borderRadius: "var(--radius, 6px)" }}>
-            <span>{i + 1}. {t.name}</span>
-            <span style={{ fontWeight: 500 }}>{t.weekPoints} points</span>
-          </div>
-        ))}
+        {standings.map((t, i) => {
+          const isMine = t.id === myTeamId;
+          return (
+            <div
+              key={t.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "0.5rem 0.7rem",
+                background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
+                color: isMine ? "var(--text-accent)" : "inherit",
+                borderRadius: "var(--radius)",
+              }}
+            >
+              <span>{i + 1}. {t.name}</span>
+              <span style={{ fontWeight: 500 }}>{t.weekPoints} Weekly Points</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
