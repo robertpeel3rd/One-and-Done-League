@@ -3,7 +3,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Anyone signed in can read; only the doc's owner can write.
+    function isCommissioner() {
+      return exists(/databases/$(database)/documents/leagueSettings/main)
+        && get(/databases/$(database)/documents/leagueSettings/main).data.commissionerUids.hasAny([request.auth.uid]);
+    }
+
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
@@ -12,31 +16,35 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && (resource.data.ownerUid == request.auth.uid || isCommissioner());
     }
 
-    // Player pool is synced server-side only (Cloud Function using the Admin SDK,
-    // which bypasses these rules) — clients get read-only access.
     match /players/{playerId} {
       allow read: if request.auth != null;
       allow write: if false;
     }
 
-    // Lineup doc id convention: {teamId}_{week}
-    // Only the team's owner can write, and only if the incoming write is not
-    // trying to modify a slot for a player whose game has already started.
-    // The lockedPlayerIds set is written server-side by the same sync function
-    // that pulls kickoff data, so it can't be spoofed by the client.
     match /lineups/{lineupId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-        && request.auth.uid == get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data.ownerUid
-        && !request.resource.data.slots.values().hasAny(resource.data.lockedPlayerIds);
+        && (
+          (request.auth.uid == get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data.ownerUid
+            && !request.resource.data.slots.values().hasAny(resource.data.lockedPlayerIds))
+          || isCommissioner()
+        );
+    }
+
+    match /leaguePointOverrides/{overrideId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isCommissioner();
     }
 
     match /leagueSettings/{docId} {
       allow read: if request.auth != null;
-      allow write: if false; // admin-only, edit via console or a Cloud Function
+      allow create: if request.auth != null
+        && request.resource.data.commissionerUids.hasAny([request.auth.uid]);
+      allow update: if request.auth != null && isCommissioner();
     }
   }
 }

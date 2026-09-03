@@ -6,8 +6,9 @@ import { TeamSetup } from "./components/TeamSetup";
 import { RosterBuilder } from "./components/RosterBuilder";
 import { LeagueTable } from "./components/LeagueTable";
 import { UsedPlayers } from "./components/UsedPlayers";
+import { CommissionerTab } from "./components/CommissionerTab";
 
-const TABS = ["League Table", "Set Lineup", "Used Players"];
+const TABS = ["League Table", "Set Lineup", "Used Players", "Commissioner"];
 
 function App() {
   const { user, loading } = useAuth();
@@ -61,6 +62,7 @@ function App() {
               {activeTab === "League Table" && <LeagueTable />}
               {activeTab === "Set Lineup" && <RosterBuilder team={team} />}
               {activeTab === "Used Players" && <UsedPlayers team={team} />}
+              {activeTab === "Commissioner" && <CommissionerTab user={user} />}
             </>
           )}
         </>

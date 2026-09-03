@@ -9,14 +9,16 @@ export function LeagueTable() {
   const [teams, setTeams] = useState([]);
   const [lineups, setLineups] = useState([]);
   const [scoresByPlayer, setScoresByPlayer] = useState({});
+  const [overrides, setOverrides] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadAll() {
-      const [teamsSnap, lineupsSnap, scoresSnap] = await Promise.all([
+      const [teamsSnap, lineupsSnap, scoresSnap, overridesSnap] = await Promise.all([
         getDocs(collection(db, "teams")),
         getDocs(collection(db, "lineups")),
         getDocs(collection(db, "liveScores")),
+        getDocs(collection(db, "leaguePointOverrides")),
       ]);
       setTeams(teamsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLineups(lineupsSnap.docs.map((d) => d.data()));
@@ -25,6 +27,12 @@ export function LeagueTable() {
         scoreMap[d.id] = d.data().points || 0;
       });
       setScoresByPlayer(scoreMap);
+      const overrideMap = {};
+      overridesSnap.docs.forEach((d) => {
+        const data = d.data();
+        overrideMap[`${data.teamId}_${data.week}`] = data.leaguePoints;
+      });
+      setOverrides(overrideMap);
       setLoading(false);
     }
     loadAll();
@@ -62,19 +70,25 @@ export function LeagueTable() {
     return result;
   }
 
+  function leaguePointsForTeamWeek(teamId, week, computedMap) {
+    const overrideKey = `${teamId}_${week}`;
+    if (overrideKey in overrides) return overrides[overrideKey];
+    return computedMap[teamId] || 0;
+  }
+
   const totalStandings = useMemo(() => {
     if (teams.length === 0 || !currentWeek) return [];
     const completedWeeks = Array.from({ length: currentWeek - 1 }, (_, i) => i + 1);
     const leaguePointTotals = {};
     teams.forEach((t) => (leaguePointTotals[t.id] = 0));
     completedWeeks.forEach((week) => {
-      const weekPts = leaguePointsForWeek(week);
+      const computedWeekPts = leaguePointsForWeek(week);
       teams.forEach((t) => {
-        leaguePointTotals[t.id] += weekPts[t.id] || 0;
+        leaguePointTotals[t.id] += leaguePointsForTeamWeek(t.id, week, computedWeekPts);
       });
     });
     return teams.map((t) => ({ ...t, leaguePoints: leaguePointTotals[t.id] })).sort((a, b) => b.leaguePoints - a.leaguePoints);
-  }, [teams, lineups, scoresByPlayer, currentWeek]);
+  }, [teams, lineups, scoresByPlayer, currentWeek, overrides]);
 
   const liveStandings = useMemo(() => {
     if (teams.length === 0 || !currentWeek) return [];
