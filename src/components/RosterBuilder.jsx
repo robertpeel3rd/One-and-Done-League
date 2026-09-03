@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   query,
   where,
@@ -11,6 +10,7 @@ import {
   deleteField,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { useCurrentWeek } from "../lib/useCurrentWeek";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
@@ -25,15 +25,14 @@ function lineupDocId(teamId, week) {
 }
 
 export function RosterBuilder({ team }) {
-  const [week, setWeek] = useState(1);
+  const { week, loading: weekLoading } = useCurrentWeek();
   const [players, setPlayers] = useState([]);
   const [usedPlayerIds, setUsedPlayerIds] = useState(new Set());
-  const [currentSlots, setCurrentSlots] = useState({}); // { slotIndex: playerId }
+  const [currentSlots, setCurrentSlots] = useState({});
   const [loading, setLoading] = useState(true);
   const [pickerSlot, setPickerSlot] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Load the full player pool once.
   useEffect(() => {
     async function loadPlayers() {
       const snap = await getDocs(collection(db, "players"));
@@ -42,10 +41,8 @@ export function RosterBuilder({ team }) {
     loadPlayers();
   }, []);
 
-  // Load every lineup this team has ever set, to compute which players are
-  // already used (locked out for the rest of the season), and load this
-  // week's current picks.
   useEffect(() => {
+    if (weekLoading || !week) return;
     async function loadLineups() {
       setLoading(true);
       const q = query(collection(db, "lineups"), where("teamId", "==", team.id));
@@ -67,7 +64,7 @@ export function RosterBuilder({ team }) {
       setLoading(false);
     }
     loadLineups();
-  }, [team.id, week]);
+  }, [team.id, week, weekLoading]);
 
   async function assignPlayer(slotIndex, playerId) {
     const newSlots = { ...currentSlots, [slotIndex]: playerId };
@@ -75,11 +72,7 @@ export function RosterBuilder({ team }) {
     setUsedPlayerIds((prev) => new Set(prev).add(playerId));
 
     const ref = doc(db, "lineups", lineupDocId(team.id, week));
-    await setDoc(
-      ref,
-      { teamId: team.id, week, slots: newSlots },
-      { merge: true }
-    );
+    await setDoc(ref, { teamId: team.id, week, slots: newSlots }, { merge: true });
     setPickerSlot(null);
     setSearchTerm("");
   }
@@ -98,9 +91,7 @@ export function RosterBuilder({ team }) {
     }
 
     const ref = doc(db, "lineups", lineupDocId(team.id, week));
-    await updateDoc(ref, { [`slots.${slotIndex}`]: deleteField() }).catch(() => {
-      // doc might not exist yet if nothing was ever saved for this week
-    });
+    await updateDoc(ref, { [`slots.${slotIndex}`]: deleteField() }).catch(() => {});
   }
 
   const pickerPool = useMemo(() => {
@@ -115,8 +106,6 @@ export function RosterBuilder({ team }) {
           ([idx, pid]) => pid === p.id && Number(idx) !== pickerSlot
         );
         const usedInPastWeek = usedPlayerIds.has(p.id) && currentSlots[pickerSlot] !== p.id;
-        // NOTE: kickoff-time lock isn't wired up yet — players stay selectable
-        // right up until game data is added to the players collection.
         const locked = usedElsewhereThisWeek || usedInPastWeek;
         return { ...p, locked };
       })
@@ -124,18 +113,11 @@ export function RosterBuilder({ team }) {
       .slice(0, 100);
   }, [pickerSlot, players, searchTerm, currentSlots, usedPlayerIds]);
 
-  if (loading) return <p>Loading your roster...</p>;
+  if (weekLoading || loading) return <p>Loading your roster...</p>;
 
   return (
     <div style={{ maxWidth: 480 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <h3 style={{ margin: 0 }}>Week</h3>
-        <select value={week} onChange={(e) => setWeek(Number(e.target.value))}>
-          {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => (
-            <option key={w} value={w}>{w}</option>
-          ))}
-        </select>
-      </div>
+      <p style={{ color: "var(--text-secondary, #666)", marginBottom: 8 }}>Week {week}</p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
         {SLOTS.map((pos, idx) => {
@@ -154,15 +136,11 @@ export function RosterBuilder({ team }) {
               }}
             >
               <div>
-                <span style={{ fontSize: 12, color: "var(--text-secondary, #666)", marginRight: 8 }}>
-                  {pos}
-                </span>
+                <span style={{ fontSize: 12, color: "var(--text-secondary, #666)", marginRight: 8 }}>{pos}</span>
                 {player ? (
                   <span>
                     {player.name}{" "}
-                    <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>
-                      ({player.team})
-                    </span>
+                    <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>({player.team})</span>
                   </span>
                 ) : (
                   <span style={{ color: "var(--text-muted, #888)" }}>empty</span>
@@ -197,9 +175,7 @@ export function RosterBuilder({ team }) {
                 style={{ textAlign: "left", opacity: p.locked ? 0.4 : 1 }}
               >
                 {p.name}{" "}
-                <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>
-                  {p.pos} · {p.team}
-                </span>
+                <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>{p.pos} · {p.team}</span>
               </button>
             ))}
             {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted, #888)" }}>No matches.</p>}
