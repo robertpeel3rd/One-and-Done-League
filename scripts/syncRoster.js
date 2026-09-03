@@ -28,10 +28,14 @@ async function main() {
   const players = await res.json(); // { [player_id]: { ...player fields } }
 
   const activePlayers = Object.entries(players).filter(
-    ([, p]) => p.active && ["QB", "RB", "WR", "TE", "K", "DEF"].includes(p.position)
+    ([, p]) =>
+      p.active &&
+      p.team && // excludes free agents not on an active 53-man roster
+      ["QB", "RB", "WR", "TE", "K", "DEF"].includes(p.position)
   );
 
   console.log(`Writing ${activePlayers.length} active players to Firestore...`);
+  const activeIds = new Set(activePlayers.map(([id]) => id));
   const batchSize = 400; // stay under Firestore's 500-write batch limit
   for (let i = 0; i < activePlayers.length; i += batchSize) {
     const batch = db.batch();
@@ -53,6 +57,23 @@ async function main() {
     }
     await batch.commit();
     console.log(`  wrote ${Math.min(i + batchSize, activePlayers.length)}/${activePlayers.length}`);
+  }
+
+  // Clean up stale docs — players previously synced (e.g. free agents, retired,
+  // or since-inactive players) that no longer belong in the pool.
+  console.log("Checking for stale player docs to remove...");
+  const existingSnap = await db.collection("players").get();
+  const staleIds = existingSnap.docs.map((d) => d.id).filter((id) => !activeIds.has(id));
+  if (staleIds.length > 0) {
+    console.log(`Removing ${staleIds.length} stale players...`);
+    for (let i = 0; i < staleIds.length; i += batchSize) {
+      const batch = db.batch();
+      const chunk = staleIds.slice(i, i + batchSize);
+      for (const id of chunk) {
+        batch.delete(db.collection("players").doc(id));
+      }
+      await batch.commit();
+    }
   }
 
   console.log("Done. NOTE: kickoff times still need to be filled in — see comment in this file.");
