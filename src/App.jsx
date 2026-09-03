@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./App.css";
 import { useAuth } from "./lib/useAuth";
 import { SignInButton } from "./components/SignInButton";
 import { TeamSetup } from "./components/TeamSetup";
