@@ -101,62 +101,81 @@ export function WeeklyScoring({ myTeamId }) {
           const isMine = team.id === myTeamId;
           const isExpanded = expandedTeamId === team.id;
           return (
-            <div
-              key={team.id}
-              style={{
-                borderRadius: "var(--radius)",
-                overflow: "hidden",
-                border: isExpanded ? "0.5px solid var(--border-strong)" : "none",
-              }}
-            >
-              <button
-                onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
+            <div key={team.id} style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
+              <div
                 style={{
-                  width: "100%",
+                  width: 32,
+                  flexShrink: 0,
+                  borderRadius: "var(--radius)",
                   display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  padding: "0.6rem 0.9rem",
-                  background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
-                  color: isMine ? "var(--text-accent)" : "inherit",
-                  border: "none",
-                  borderRadius: isExpanded ? 0 : "var(--radius)",
-                  textAlign: "left",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: isMine ? "var(--text-accent)" : "var(--surface-1)",
+                  color: isMine ? "var(--surface-2)" : "var(--text-secondary)",
+                  border: isMine ? "none" : "0.5px solid var(--border-strong)",
                 }}
               >
-                <span style={{ flex: 1, minWidth: 0, textAlign: "left", fontWeight: 500 }}>
-                  {i + 1}. {team.name}
-                  <i
-                    className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
-                    style={{ fontSize: 13, marginLeft: 6, verticalAlign: -1 }}
-                    aria-hidden="true"
-                  />
-                </span>
-                <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 500, marginLeft: 8 }}>
-                  {total} Weekly Points
-                </span>
-              </button>
+                {i + 1}
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  borderRadius: "var(--radius)",
+                  overflow: "hidden",
+                  border: isExpanded ? "0.5px solid var(--border-strong)" : "none",
+                }}
+              >
+                <button
+                  onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.6rem 0.9rem",
+                    background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
+                    color: isMine ? "var(--text-accent)" : "inherit",
+                    border: "none",
+                    borderRadius: isExpanded ? 0 : "var(--radius)",
+                    textAlign: "left",
+                  }}
+                >
+                  <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                    {team.name}
+                    <i
+                      className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
+                      style={{ fontSize: 13, marginLeft: 6, verticalAlign: -1 }}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 700, marginLeft: 8 }}>
+                    {total}
+                  </span>
+                </button>
 
-              {isExpanded &&
-                slotEntries.map((s, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: "0.4rem 0.9rem",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: 13,
-                      borderTop: "0.5px solid var(--border)",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    <span>
-                      <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.pos}</span>{" "}
-                      {s.player ? `${s.player.name} (${s.player.team})` : "—"}
-                    </span>
-                    <span>{s.pts}</span>
-                  </div>
-                ))}
+                {isExpanded &&
+                  slotEntries.map((s, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "0.4rem 0.9rem",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: 13,
+                        borderTop: "0.5px solid var(--border)",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      <span>
+                        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.pos}</span>{" "}
+                        {s.player ? `${s.player.name} (${s.player.team})` : "—"}
+                      </span>
+                      <span>{s.pts}</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           );
         })}
