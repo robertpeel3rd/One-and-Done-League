@@ -21,19 +21,23 @@ export function Standings({ myTeamId }) {
       getDocs(collection(db, "liveScores")),
       getDocs(collection(db, "leaguePointOverrides")),
     ]);
+
     setTeams(teamsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     setLineups(lineupsSnap.docs.map((d) => d.data()));
+
     const scoreMap = {};
     scoresSnap.docs.forEach((d) => {
       scoreMap[d.id] = d.data().points || 0;
     });
     setScoresByPlayer(scoreMap);
+
     const overrideMap = {};
     overridesSnap.docs.forEach((d) => {
       const data = d.data();
       overrideMap[`${data.teamId}_${data.week}`] = data.leaguePoints;
     });
     setOverrides(overrideMap);
+
     setLoading(false);
   }
 
@@ -140,6 +144,7 @@ export function Standings({ myTeamId }) {
               key={t.id}
               style={{
                 display: "flex",
+                alignItems: "flex-start",
                 justifyContent: "space-between",
                 padding: "0.5rem 0.7rem",
                 background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
@@ -147,8 +152,10 @@ export function Standings({ myTeamId }) {
                 borderRadius: "var(--radius)",
               }}
             >
-              <span>{i + 1}. {t.name}</span>
-              <span style={{ fontWeight: 500 }}>{t.leaguePoints} League Points</span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>{i + 1}. {t.name}</span>
+              <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 500, marginLeft: 8 }}>
+                {t.leaguePoints} League Points
+              </span>
             </div>
           );
         })}

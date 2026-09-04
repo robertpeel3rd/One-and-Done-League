@@ -7,7 +7,6 @@ import { TeamSetup } from "./components/TeamSetup";
 import { RosterBuilder } from "./components/RosterBuilder";
 import { Standings } from "./components/Standings";
 import { WeeklyScoring } from "./components/WeeklyScoring";
-import { Teams } from "./components/Teams";
 import { UsedPlayers } from "./components/UsedPlayers";
 import { CommissionerTab } from "./components/CommissionerTab";
 import { About } from "./components/About";
@@ -15,7 +14,7 @@ import { BottomNav } from "./components/BottomNav";
 import { Logo } from "./components/Logo";
 import { signInWithGoogle } from "./lib/firebase";
 
-const BASE_TABS = ["Standings", "Weekly Scoring", "Teams", "My Lineup", "Used Players", "About"];
+const BASE_TABS = ["Standings", "Weekly Scoring", "My Lineup", "Used Players", "About"];
 
 function App() {
   const { user, loading } = useAuth();
@@ -59,7 +58,6 @@ function App() {
               <div style={{ marginTop: "1.25rem" }}>
                 {activeTab === "Standings" && <Standings myTeamId={team.id} />}
                 {activeTab === "Weekly Scoring" && <WeeklyScoring myTeamId={team.id} />}
-                {activeTab === "Teams" && <Teams myTeamId={team.id} />}
                 {activeTab === "My Lineup" && <RosterBuilder team={team} />}
                 {activeTab === "Used Players" && <UsedPlayers team={team} />}
                 {activeTab === "About" && <About user={user} />}
