@@ -136,26 +136,45 @@ export function Standings({ myTeamId }) {
           : `League Points through completed weeks, plus what Week ${currentWeek} would add if it ended right now. Updates automatically.`}
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {standings.map((t, i) => {
           const isMine = t.id === myTeamId;
           return (
-            <div
-              key={t.id}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                padding: "0.5rem 0.7rem",
-                background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
-                color: isMine ? "var(--text-accent)" : "inherit",
-                borderRadius: "var(--radius)",
-              }}
-            >
-              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>{i + 1}. {t.name}</span>
-              <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 500, marginLeft: 8 }}>
-                {t.leaguePoints} League Points
-              </span>
+            <div key={t.id} style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
+              <div
+                style={{
+                  width: 32,
+                  flexShrink: 0,
+                  borderRadius: "var(--radius)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: isMine ? "var(--text-accent)" : "var(--surface-1)",
+                  color: isMine ? "var(--surface-2)" : "var(--text-secondary)",
+                  border: isMine ? "none" : "0.5px solid var(--border-strong)",
+                }}
+              >
+                {i + 1}
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.5rem 0.7rem",
+                  background: isMine ? "var(--bg-accent)" : "var(--surface-1)",
+                  color: isMine ? "var(--text-accent)" : "inherit",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>{t.name}</span>
+                <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 500, marginLeft: 8 }}>
+                  {t.leaguePoints} League Points
+                </span>
+              </div>
             </div>
           );
         })}

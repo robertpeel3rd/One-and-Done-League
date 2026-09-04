@@ -45,7 +45,6 @@ export function RosterBuilder({ team }) {
   const [localSlots, setLocalSlots] = useState({});
   const [loading, setLoading] = useState(true);
   const [pickerSlot, setPickerSlot] = useState(null);
-  const [pendingPlayerId, setPendingPlayerId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [saveStatus, setSaveStatus] = useState("idle");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -104,19 +103,17 @@ export function RosterBuilder({ team }) {
 
   function openPicker(slotIndex) {
     setPickerSlot(slotIndex);
-    setPendingPlayerId(localSlots[slotIndex] || null);
     setSearchTerm("");
   }
 
   function closePicker() {
     setPickerSlot(null);
-    setPendingPlayerId(null);
     setSearchTerm("");
   }
 
-  function confirmPick() {
-    if (pickerSlot === null || !pendingPlayerId) return;
-    setLocalSlots((prev) => ({ ...prev, [pickerSlot]: pendingPlayerId }));
+  function confirmPick(playerId) {
+    if (pickerSlot === null || !playerId) return;
+    setLocalSlots((prev) => ({ ...prev, [pickerSlot]: playerId }));
     setHasUnsavedChanges(true);
     setSaveStatus("idle");
     closePicker();
@@ -223,13 +220,9 @@ export function RosterBuilder({ team }) {
                   {pickerPool.map((p) => (
                     <button
                       key={p.id}
-                      onClick={() => !p.locked && setPendingPlayerId(p.id)}
+                      onClick={() => !p.locked && confirmPick(p.id)}
                       disabled={p.locked}
-                      style={{
-                        textAlign: "left",
-                        opacity: p.locked ? 0.4 : 1,
-                        outline: pendingPlayerId === p.id ? "2px solid var(--text-accent)" : "none",
-                      }}
+                      style={{ textAlign: "left", opacity: p.locked ? 0.4 : 1 }}
                     >
                       {p.name}{" "}
                       <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
@@ -241,7 +234,6 @@ export function RosterBuilder({ team }) {
                   {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No matches.</p>}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={confirmPick} disabled={!pendingPlayerId}>Submit</button>
                   <button onClick={closePicker}>Cancel</button>
                 </div>
               </div>
