@@ -6,8 +6,6 @@ import {
   query,
   where,
   setDoc,
-  updateDoc,
-  deleteField,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
@@ -44,10 +42,13 @@ export function RosterBuilder({ team }) {
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [players, setPlayers] = useState([]);
   const [allLineups, setAllLineups] = useState([]);
+  const [localSlots, setLocalSlots] = useState({});
   const [loading, setLoading] = useState(true);
   const [pickerSlot, setPickerSlot] = useState(null);
   const [pendingPlayerId, setPendingPlayerId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [saveStatus, setSaveStatus] = useState("idle");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (currentWeek && selectedWeek === null) {
@@ -74,23 +75,28 @@ export function RosterBuilder({ team }) {
     loadLineups();
   }, [team.id]);
 
+  useEffect(() => {
+    if (selectedWeek === null) return;
+    const savedLineup = allLineups.find((l) => l.week === selectedWeek);
+    setLocalSlots(savedLineup?.slots || {});
+    setHasUnsavedChanges(false);
+    setSaveStatus("idle");
+  }, [selectedWeek, allLineups]);
+
   const isReadOnly = selectedWeek !== currentWeek;
 
   const usedPlayerIds = useMemo(() => {
     const used = new Set();
     allLineups.forEach((l) => {
+      if (l.week === selectedWeek) return;
       Object.values(l.slots || {}).forEach((pid) => pid && used.add(pid));
     });
+    Object.values(localSlots).forEach((pid) => pid && used.add(pid));
     return used;
-  }, [allLineups]);
-
-  const currentSlots = useMemo(() => {
-    const lineup = allLineups.find((l) => l.week === selectedWeek);
-    return lineup?.slots || {};
-  }, [allLineups, selectedWeek]);
+  }, [allLineups, localSlots, selectedWeek]);
 
   function isLockedIn(slotIndex) {
-    const pid = currentSlots[slotIndex];
+    const pid = localSlots[slotIndex];
     if (!pid) return false;
     const player = players.find((p) => p.id === pid);
     return player && isGameStarted(player.kickoffTime);
@@ -98,7 +104,7 @@ export function RosterBuilder({ team }) {
 
   function openPicker(slotIndex) {
     setPickerSlot(slotIndex);
-    setPendingPlayerId(currentSlots[slotIndex] || null);
+    setPendingPlayerId(localSlots[slotIndex] || null);
     setSearchTerm("");
   }
 
@@ -108,39 +114,43 @@ export function RosterBuilder({ team }) {
     setSearchTerm("");
   }
 
-  async function submitPick() {
+  function confirmPick() {
     if (pickerSlot === null || !pendingPlayerId) return;
-    const newSlots = { ...currentSlots, [pickerSlot]: pendingPlayerId };
-
-    setAllLineups((prev) => {
-      const existingIdx = prev.findIndex((l) => l.week === selectedWeek);
-      const updated = { teamId: team.id, week: selectedWeek, slots: newSlots };
-      if (existingIdx === -1) return [...prev, updated];
-      const next = [...prev];
-      next[existingIdx] = updated;
-      return next;
-    });
-
-    const ref = doc(db, "lineups", lineupDocId(team.id, selectedWeek));
-    await setDoc(ref, { teamId: team.id, week: selectedWeek, slots: newSlots }, { merge: true });
+    setLocalSlots((prev) => ({ ...prev, [pickerSlot]: pendingPlayerId }));
+    setHasUnsavedChanges(true);
+    setSaveStatus("idle");
     closePicker();
   }
 
-  async function clearSlot(slotIndex) {
+  function clearSlot(slotIndex) {
     if (isLockedIn(slotIndex)) return;
-    const newSlots = { ...currentSlots };
-    delete newSlots[slotIndex];
-
-    setAllLineups((prev) => {
-      const existingIdx = prev.findIndex((l) => l.week === selectedWeek);
-      if (existingIdx === -1) return prev;
-      const next = [...prev];
-      next[existingIdx] = { ...next[existingIdx], slots: newSlots };
+    setLocalSlots((prev) => {
+      const next = { ...prev };
+      delete next[slotIndex];
       return next;
     });
+    setHasUnsavedChanges(true);
+    setSaveStatus("idle");
+  }
 
-    const ref = doc(db, "lineups", lineupDocId(team.id, selectedWeek));
-    await updateDoc(ref, { [`slots.${slotIndex}`]: deleteField() }).catch(() => {});
+  async function saveLineup() {
+    setSaveStatus("saving");
+    try {
+      const ref = doc(db, "lineups", lineupDocId(team.id, selectedWeek));
+      await setDoc(ref, { teamId: team.id, week: selectedWeek, slots: localSlots });
+      setAllLineups((prev) => {
+        const existingIdx = prev.findIndex((l) => l.week === selectedWeek);
+        const updated = { teamId: team.id, week: selectedWeek, slots: localSlots };
+        if (existingIdx === -1) return [...prev, updated];
+        const next = [...prev];
+        next[existingIdx] = updated;
+        return next;
+      });
+      setHasUnsavedChanges(false);
+      setSaveStatus("saved");
+    } catch (err) {
+      setSaveStatus("error");
+    }
   }
 
   const pickerPool = useMemo(() => {
@@ -151,17 +161,17 @@ export function RosterBuilder({ team }) {
       .filter((p) => (pos === "FLEX" ? FLEX_ELIGIBLE.includes(p.pos) : p.pos === pos))
       .filter((p) => !term || (p.name || "").toLowerCase().includes(term))
       .map((p) => {
-        const usedElsewhereThisWeek = Object.entries(currentSlots).some(
+        const usedElsewhereThisWeek = Object.entries(localSlots).some(
           ([idx, pid]) => pid === p.id && Number(idx) !== pickerSlot
         );
-        const usedInPastWeek = usedPlayerIds.has(p.id) && currentSlots[pickerSlot] !== p.id;
+        const usedInPastWeek = usedPlayerIds.has(p.id) && localSlots[pickerSlot] !== p.id;
         const gameStarted = isGameStarted(p.kickoffTime);
         const locked = usedElsewhereThisWeek || usedInPastWeek || gameStarted;
         return { ...p, locked, gameStarted };
       })
       .sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)))
       .slice(0, 100);
-  }, [pickerSlot, players, searchTerm, currentSlots, usedPlayerIds]);
+  }, [pickerSlot, players, searchTerm, localSlots, usedPlayerIds]);
 
   if (weekLoading || loading || selectedWeek === null) return <p>Loading your lineup...</p>;
 
@@ -170,21 +180,24 @@ export function RosterBuilder({ team }) {
   return (
     <div style={{ maxWidth: 480 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 13, color: "var(--text-secondary, #666)" }}>Week</span>
-        <select value={selectedWeek} onChange={(e) => { setSelectedWeek(Number(e.target.value)); closePicker(); }}>
+        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
+        <select
+          value={selectedWeek}
+          onChange={(e) => { setSelectedWeek(Number(e.target.value)); closePicker(); }}
+        >
           {weekOptions.map((w) => (
             <option key={w} value={w}>{w}</option>
           ))}
         </select>
         {isReadOnly && (
-          <span style={{ fontSize: 12, color: "var(--text-muted, #888)" }}>viewing past week — read only</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>viewing past week — read only</span>
         )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
         {SLOTS.map((pos, idx) => {
           const isPicking = pickerSlot === idx;
-          const pid = currentSlots[idx];
+          const pid = localSlots[idx];
           const player = players.find((p) => p.id === pid);
           const locked = isLockedIn(idx);
 
@@ -193,14 +206,12 @@ export function RosterBuilder({ team }) {
               <div
                 key={idx}
                 style={{
-                  background: "var(--surface-1, #f5f5f5)",
-                  borderRadius: "var(--radius, 6px)",
+                  background: "var(--surface-1)",
+                  borderRadius: "var(--radius)",
                   padding: "0.6rem 0.7rem",
                 }}
               >
-                <div style={{ fontSize: 12, color: "var(--text-secondary, #666)", marginBottom: 6 }}>
-                  {pos}
-                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>{pos}</div>
                 <input
                   placeholder={`Search ${pos}s...`}
                   value={searchTerm}
@@ -217,20 +228,20 @@ export function RosterBuilder({ team }) {
                       style={{
                         textAlign: "left",
                         opacity: p.locked ? 0.4 : 1,
-                        outline: pendingPlayerId === p.id ? "2px solid #333" : "none",
+                        outline: pendingPlayerId === p.id ? "2px solid var(--text-accent)" : "none",
                       }}
                     >
                       {p.name}{" "}
-                      <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>
+                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
                         {p.pos} · {p.team}
                         {!p.gameStarted && p.kickoffTime && ` · ${formatKickoffET(p.kickoffTime)} ET`}
                       </span>
                     </button>
                   ))}
-                  {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted, #888)" }}>No matches.</p>}
+                  {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No matches.</p>}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={submitPick} disabled={!pendingPlayerId}>Submit</button>
+                  <button onClick={confirmPick} disabled={!pendingPlayerId}>Submit</button>
                   <button onClick={closePicker}>Cancel</button>
                 </div>
               </div>
@@ -245,28 +256,22 @@ export function RosterBuilder({ team }) {
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "0.5rem 0.7rem",
-                background: "var(--surface-1, #f5f5f5)",
-                borderRadius: "var(--radius, 6px)",
+                background: "var(--surface-1)",
+                borderRadius: "var(--radius)",
               }}
             >
               <div>
-                <span style={{ fontSize: 12, color: "var(--text-secondary, #666)", marginRight: 8 }}>
-                  {pos}
-                </span>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)", marginRight: 8 }}>{pos}</span>
                 {player ? (
                   <span>
                     {player.name}{" "}
-                    <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>
-                      ({player.team})
-                    </span>
+                    <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({player.team})</span>
                     {locked && (
-                      <span style={{ color: "var(--text-danger, #a32d2d)", fontSize: 11, marginLeft: 6 }}>
-                        locked
-                      </span>
+                      <span style={{ color: "var(--text-danger)", fontSize: 11, marginLeft: 6 }}>locked</span>
                     )}
                   </span>
                 ) : (
-                  <span style={{ color: "var(--text-muted, #888)" }}>empty</span>
+                  <span style={{ color: "var(--text-muted)" }}>empty</span>
                 )}
               </div>
               {!isReadOnly && (
@@ -281,6 +286,35 @@ export function RosterBuilder({ team }) {
           );
         })}
       </div>
+
+      {!isReadOnly && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <button
+            onClick={saveLineup}
+            disabled={!hasUnsavedChanges || saveStatus === "saving"}
+            style={{
+              fontWeight: 500,
+              background: hasUnsavedChanges ? "var(--bg-accent)" : undefined,
+              color: hasUnsavedChanges ? "var(--text-accent)" : undefined,
+            }}
+          >
+            {saveStatus === "saving" ? "Saving..." : "Save Lineup"}
+          </button>
+          {saveStatus === "saved" && (
+            <p style={{ fontSize: 13, color: "var(--text-accent)", margin: 0 }}>Lineup saved.</p>
+          )}
+          {saveStatus === "error" && (
+            <p style={{ fontSize: 13, color: "var(--text-danger)", margin: 0 }}>
+              Couldn't save your lineup. Check your connection and try again.
+            </p>
+          )}
+          {hasUnsavedChanges && saveStatus === "idle" && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+              You have unsaved changes.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
