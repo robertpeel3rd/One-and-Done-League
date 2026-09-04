@@ -152,7 +152,7 @@ export function WeeklyScoring({ myTeamId }) {
                   >
                     <span>
                       <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.pos}</span>{" "}
-                      {s.player ? s.player.name.split(" ").slice(-1)[0] : "—"}
+                      {s.player ? `${s.player.name} (${s.player.team})` : "—"}
                     </span>
                     <span>{s.pts}</span>
                   </div>

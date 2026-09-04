@@ -166,8 +166,7 @@ export function RosterBuilder({ team }) {
         const locked = usedElsewhereThisWeek || usedInPastWeek || gameStarted;
         return { ...p, locked, gameStarted };
       })
-      .sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)))
-      .slice(0, 100);
+      .sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)));
   }, [pickerSlot, players, searchTerm, localSlots, usedPlayerIds]);
 
   if (weekLoading || loading || selectedWeek === null) return <p>Loading your lineup...</p>;
@@ -241,39 +240,57 @@ export function RosterBuilder({ team }) {
           }
 
           return (
-            <div
-              key={idx}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "0.5rem 0.7rem",
-                background: "var(--surface-1)",
-                borderRadius: "var(--radius)",
-              }}
-            >
-              <div>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)", marginRight: 8 }}>{pos}</span>
-                {player ? (
-                  <span>
-                    {player.name}{" "}
-                    <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({player.team})</span>
-                    {locked && (
-                      <span style={{ color: "var(--text-danger)", fontSize: 11, marginLeft: 6 }}>locked</span>
-                    )}
-                  </span>
-                ) : (
-                  <span style={{ color: "var(--text-muted)" }}>empty</span>
+            <div key={idx} style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
+              <div
+                style={{
+                  width: 44,
+                  flexShrink: 0,
+                  borderRadius: "var(--radius)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: "var(--surface-1)",
+                  color: "var(--text-secondary)",
+                  border: "0.5px solid var(--border-strong)",
+                }}
+              >
+                {pos}
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.5rem 0.7rem",
+                  background: "var(--surface-1)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                  {player ? (
+                    <>
+                      {player.name}{" "}
+                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({player.team})</span>
+                      {locked && (
+                        <span style={{ color: "var(--text-danger)", fontSize: 11, marginLeft: 6 }}>locked</span>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: "var(--text-muted)" }}>empty</span>
+                  )}
+                </span>
+                {!isReadOnly && (
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+                    <button onClick={() => openPicker(idx)} disabled={locked}>
+                      {player ? "swap" : "pick"}
+                    </button>
+                    {player && <button onClick={() => clearSlot(idx)} disabled={locked}>clear</button>}
+                  </div>
                 )}
               </div>
-              {!isReadOnly && (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => openPicker(idx)} disabled={locked}>
-                    {player ? "swap" : "pick"}
-                  </button>
-                  {player && <button onClick={() => clearSlot(idx)} disabled={locked}>clear</button>}
-                </div>
-              )}
             </div>
           );
         })}

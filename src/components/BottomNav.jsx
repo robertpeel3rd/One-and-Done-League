@@ -6,6 +6,7 @@ const ICONS = {
   "Used Players": "ti-history",
   About: "ti-info-circle",
   Commissioner: "ti-shield",
+  More: "ti-dots",
 };
 
 export function BottomNav({ tabs, activeTab, onSelect }) {

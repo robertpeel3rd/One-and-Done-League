@@ -11,16 +11,19 @@ import { UsedPlayers } from "./components/UsedPlayers";
 import { CommissionerTab } from "./components/CommissionerTab";
 import { About } from "./components/About";
 import { BottomNav } from "./components/BottomNav";
+import { MoreMenu } from "./components/MoreMenu";
 import { Logo } from "./components/Logo";
 import { signInWithGoogle } from "./lib/firebase";
 
-const BASE_TABS = ["Standings", "Weekly Scoring", "My Lineup", "Used Players", "About"];
+const MAIN_TABS = ["Standings", "Weekly Scoring", "My Lineup", "More"];
+const MORE_OPTIONS = ["Used Players", "About"];
 
 function App() {
   const { user, loading } = useAuth();
   const [team, setTeam] = useState(null);
   const [activeTab, setActiveTab] = useState("Standings");
   const [isCommissioner, setIsCommissioner] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     async function checkCommissioner() {
@@ -37,10 +40,26 @@ function App() {
     return <p style={{ padding: "1rem" }}>Loading...</p>;
   }
 
-  const tabs = isCommissioner ? [...BASE_TABS, "Commissioner"] : BASE_TABS;
+  const moreOptions = isCommissioner ? [...MORE_OPTIONS, "Commissioner"] : MORE_OPTIONS;
+  const isMoreActive = moreOptions.includes(activeTab);
+  const displayTab = isMoreActive ? "More" : activeTab;
+
+  function handleNavSelect(tab) {
+    if (tab === "More") {
+      setMoreOpen((open) => !open);
+      return;
+    }
+    setActiveTab(tab);
+    setMoreOpen(false);
+  }
+
+  function handleMoreSelect(option) {
+    setActiveTab(option);
+    setMoreOpen(false);
+  }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "1rem", width: "100%", flex: 1 }}>
         <Logo />
         {!user && (
@@ -68,8 +87,12 @@ function App() {
         )}
       </div>
 
+      {user && team && moreOpen && (
+        <MoreMenu options={moreOptions} onSelect={handleMoreSelect} />
+      )}
+
       {user && team && (
-        <BottomNav tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+        <BottomNav tabs={MAIN_TABS} activeTab={displayTab} onSelect={handleNavSelect} />
       )}
     </div>
   );
