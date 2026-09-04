@@ -17,7 +17,7 @@ export function About({ user }) {
       <div style={section}>
         <div style={heading}>League Points</div>
         <p style={body}>
-          Each week, teams are ranked by their total Weekly Points. The top half of teams earn League Points: 1st place earns points equal to half the number of teams in the league (rounded down), 2nd place earns one less, and so on, down to the last team in the top half earning 1 point. Teams in the bottom half earn 0 League Points that week. Ties split the available points evenly, rounded down. Season standings are the sum of League Points earned across all weeks.
+          Each week, teams are ranked by their total Weekly Points. The top half of teams earn League Points — more points for a higher finish, none for the bottom half. Points accumulate across the season to determine the standings.
         </p>
       </div>
 
@@ -36,7 +36,7 @@ export function About({ user }) {
       </div>
 
       <div style={section}>
-        <div style={heading}>Player locks</div>
+        <div style={heading}>Lineup Locks</div>
         <p style={body}>
           A player becomes locked in your lineup at the moment their NFL game kicks off. Locked players cannot be swapped or removed. Players can be freely changed at any time before their game starts.
         </p>
