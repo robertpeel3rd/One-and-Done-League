@@ -16,6 +16,7 @@ const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 export function CommissionerTab({ user }) {
   const [settings, setSettings] = useState(null);
   const [teams, setTeams] = useState([]);
+  const [ownerEmails, setOwnerEmails] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedCoCommTeam, setSelectedCoCommTeam] = useState("");
 
@@ -32,8 +33,17 @@ export function CommissionerTab({ user }) {
     setLoading(true);
     const settingsSnap = await getDoc(doc(db, "leagueSettings", "main"));
     setSettings(settingsSnap.exists() ? settingsSnap.data() : null);
+
     const teamsSnap = await getDocs(collection(db, "teams"));
     setTeams(teamsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+    const usersSnap = await getDocs(collection(db, "users"));
+    const emailMap = {};
+    usersSnap.docs.forEach((d) => {
+      emailMap[d.id] = d.data().email;
+    });
+    setOwnerEmails(emailMap);
+
     setLoading(false);
   }
 
@@ -49,6 +59,30 @@ export function CommissionerTab({ user }) {
       rosterSlots: SLOTS,
     });
     await loadEverything();
+  }
+
+  function downloadEmailList() {
+    const rows = [["Team", "Owner Email"]];
+    teams.forEach((t) => {
+      rows.push([t.name, ownerEmails[t.ownerUid] || ""]);
+    });
+    const csv = rows.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "one-and-done-league-emails.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function emailEveryone() {
+    const addresses = teams
+      .map((t) => ownerEmails[t.ownerUid])
+      .filter(Boolean)
+      .join(",");
+    const subject = encodeURIComponent("One and Done League");
+    window.location.href = `mailto:?bcc=${addresses}&subject=${subject}`;
   }
 
   async function addCoCommissioner() {
@@ -126,6 +160,25 @@ export function CommissionerTab({ user }) {
 
   return (
     <div style={{ maxWidth: 480, display: "flex", flexDirection: "column", gap: 24 }}>
+      <section>
+        <h3 style={{ marginBottom: 8 }}>League Emails</h3>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
+          Contact info for every team owner in the league.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button onClick={downloadEmailList}>Download email list (CSV)</button>
+          <button
+            onClick={emailEveryone}
+            style={{ background: "var(--bg-accent)", color: "var(--text-accent)", fontWeight: 500 }}
+          >
+            Email everyone
+          </button>
+        </div>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+          Opens your email app with all team owners BCC'd. Nothing is sent automatically.
+        </p>
+      </section>
+
       <section>
         <h3 style={{ marginBottom: 8 }}>Commissioners</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
@@ -229,7 +282,7 @@ export function CommissionerTab({ user }) {
           Current slots: {settings.rosterSlots?.join(", ")}
         </p>
         <p style={{ fontSize: 12, color: "var(--text-muted, #888)" }}>
-          Editing these here updates leagueSettings, but the Set Lineup tab still uses a fixed slot list — a follow-up step.
+          Editing these here updates leagueSettings, but the Set Lineup tab still uses a fixed slot list — wiring that up is a follow-up step.
         </p>
       </section>
     </div>
