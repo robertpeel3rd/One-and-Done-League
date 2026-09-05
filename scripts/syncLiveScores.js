@@ -1,5 +1,12 @@
-// Pulls this week's stats from Sleeper (including their computed pts_ppr) and
-// writes running fantasy point totals into Firestore's `liveScores`
+// Pulls this week's RAW stats from Sleeper and computes fantasy points
+// ourselves using our own explicit scoring rules, rather than trusting
+// Sleeper's own pts_ppr field. We verified against real 2025 data that
+// Sleeper's pts_ppr does NOT cleanly match a simple documented formula for
+// kickers (two real kicker examples gave inconsistent results against every
+// flat-tier model we tried) — so we compute scoring ourselves here instead,
+// using our own defined, documented rules (see the About tab in the app).
+//
+// Writes running fantasy point totals into Firestore's `liveScores`
 // collection, keyed by player_id. Run frequently during game windows.
 //
 // No API key needed.
@@ -24,31 +31,73 @@ async function getCurrentWeek() {
   return { season: state.season, week: state.week };
 }
 
+function calcFantasyPoints(stats) {
+  let pts = 0;
+
+  pts += (Number(stats.pass_yd) || 0) * 0.04;
+  pts += (Number(stats.pass_td) || 0) * 4;
+  pts -= (Number(stats.pass_int) || 0) * 2;
+
+  pts += (Number(stats.rush_yd) || 0) * 0.1;
+  pts += (Number(stats.rush_td) || 0) * 6;
+
+  pts += (Number(stats.rec) || 0) * 1;
+  pts += (Number(stats.rec_yd) || 0) * 0.1;
+  pts += (Number(stats.rec_td) || 0) * 6;
+
+  pts -= (Number(stats.fum_lost) || 0) * 2;
+
+  pts += (Number(stats.pass_2pt) || 0) * 2;
+  pts += (Number(stats.rush_2pt) || 0) * 2;
+  pts += (Number(stats.rec_2pt) || 0) * 2;
+
+  const fgm40_49 = Number(stats.fgm_40_49) || 0;
+  const fgm50_59 = Number(stats.fgm_50_59) || 0;
+  const fgm50p = Number(stats.fgm_50p) || 0;
+  const fgmTotal = Number(stats.fgm) || 0;
+  const fgm0_39 = Math.max(0, fgmTotal - fgm40_49 - fgm50_59 - fgm50p);
+
+  pts += fgm0_39 * 3;
+  pts += fgm40_49 * 4;
+  pts += (fgm50_59 + fgm50p) * 5;
+  pts += (Number(stats.xpm) || 0) * 1;
+
+  pts += (Number(stats.sack) || 0) * 1;
+  pts += (Number(stats.int) || 0) * 2;
+  pts += (Number(stats.fum_rec) || 0) * 2;
+  pts += (Number(stats.def_td) || 0) * 6;
+  pts += (Number(stats.safe) || 0) * 2;
+  pts += (Number(stats.blk_kick) || 0) * 2;
+
+  return Math.round(pts * 100) / 100;
+}
+
 async function main() {
   const db = initFirebase();
 
   const { season, week } = await getCurrentWeek();
-  console.log(`Fetching stats for ${season} week ${week}...`);
+  console.log(`Fetching raw stats for ${season} week ${week}...`);
 
   const res = await fetch(
     `https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`
   );
   if (!res.ok) throw new Error(`Sleeper stats request failed: ${res.status}`);
-  const stats = await res.json(); // { [player_id]: { pts_ppr, pts_std, ...raw stats } }
+  const rawStats = await res.json();
 
-  const entries = Object.entries(stats).filter(([, s]) => s && typeof s.pts_ppr === "number");
+  const entries = Object.entries(rawStats).filter(([, s]) => s && Object.keys(s).length > 0);
 
-  console.log(`Writing live scores for ${entries.length} players...`);
+  console.log(`Computing and writing scores for ${entries.length} players...`);
   const batchSize = 400;
   for (let i = 0; i < entries.length; i += batchSize) {
     const batch = db.batch();
     const chunk = entries.slice(i, i + batchSize);
-    for (const [playerId, s] of chunk) {
+    for (const [playerId, stats] of chunk) {
+      const points = calcFantasyPoints(stats);
       const ref = db.collection("liveScores").doc(playerId);
       batch.set(
         ref,
         {
-          points: s.pts_ppr,
+          points,
           week,
           season,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
