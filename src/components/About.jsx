@@ -96,14 +96,21 @@ export function About({ user }) {
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Missed extra point</td><td style={{ padding: 8, textAlign: "right" }}>-1</td></tr>
 
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
-              <td rowSpan={6} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Defense/Special Teams</td>
+              <td rowSpan={13} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Defense/Special Teams</td>
               <td style={{ padding: 8 }}>Sack</td><td style={{ padding: 8, textAlign: "right" }}>1</td>
             </tr>
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Interception</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Fumble recovery</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Defensive/special teams touchdown</td><td style={{ padding: 8, textAlign: "right" }}>6</td></tr>
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Safety</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
-            <tr><td style={{ padding: 8 }}>Blocked kick</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Blocked kick</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Points allowed: 0</td><td style={{ padding: 8, textAlign: "right" }}>10</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Points allowed: 1-6</td><td style={{ padding: 8, textAlign: "right" }}>7</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Points allowed: 7-13</td><td style={{ padding: 8, textAlign: "right" }}>4</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Points allowed: 14-20</td><td style={{ padding: 8, textAlign: "right" }}>1</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Points allowed: 21-27</td><td style={{ padding: 8, textAlign: "right" }}>0</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Points allowed: 28-34</td><td style={{ padding: 8, textAlign: "right" }}>-1</td></tr>
+            <tr><td style={{ padding: 8 }}>Points allowed: 35+</td><td style={{ padding: 8, textAlign: "right" }}>-4</td></tr>
           </tbody>
         </table>
       </div>

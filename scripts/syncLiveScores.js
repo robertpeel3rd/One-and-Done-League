@@ -31,6 +31,17 @@ async function getCurrentWeek() {
   return { season: state.season, week: state.week };
 }
 
+// Standard defense/special teams points-allowed scoring tiers.
+function getPointsAllowedScore(ptsAllowed) {
+  if (ptsAllowed === 0) return 10;
+  if (ptsAllowed <= 6) return 7;
+  if (ptsAllowed <= 13) return 4;
+  if (ptsAllowed <= 20) return 1;
+  if (ptsAllowed <= 27) return 0;
+  if (ptsAllowed <= 34) return -1;
+  return -4; // 35+
+}
+
 function calcFantasyPoints(stats) {
   let pts = 0;
 
@@ -70,6 +81,12 @@ function calcFantasyPoints(stats) {
   pts += (Number(stats.def_td) || 0) * 6;
   pts += (Number(stats.safe) || 0) * 2;
   pts += (Number(stats.blk_kick) || 0) * 2;
+
+  // DST points allowed (only applies to team defense entries, which carry
+  // pts_allow; skip for individual players who won't have this field).
+  if (stats.pts_allow !== undefined) {
+    pts += getPointsAllowedScore(Number(stats.pts_allow));
+  }
 
   return Math.round(pts * 100) / 100;
 }
