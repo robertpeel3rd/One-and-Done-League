@@ -61,6 +61,8 @@ function calcFantasyPoints(stats) {
   pts += fgm40_49 * 4;
   pts += (fgm50_59 + fgm50p) * 5;
   pts += (Number(stats.xpm) || 0) * 1;
+  pts -= (Number(stats.fgmiss) || 0) * 1;
+  pts -= (Number(stats.xpmiss) || 0) * 1;
 
   pts += (Number(stats.sack) || 0) * 1;
   pts += (Number(stats.int) || 0) * 2;
