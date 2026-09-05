@@ -45,8 +45,67 @@ export function About({ user }) {
       <div style={section}>
         <div style={heading}>Scoring</div>
         <p style={body}>
-          Standard PPR (point-per-reception) scoring is used for passing, rushing, and receiving statistics. Kickers are scored using standard distance-based field goal and extra point values.
+          Standard PPR (point-per-reception) scoring is used for passing, rushing, and receiving statistics. Kickers and Defense/Special Teams are scored using the values below.
         </p>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginTop: 8 }}>
+          <tbody>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td style={{ padding: 8, fontWeight: 500, color: "var(--text-secondary)" }}>Category</td>
+              <td style={{ padding: 8, fontWeight: 500, color: "var(--text-secondary)" }}>Stat</td>
+              <td style={{ padding: 8, fontWeight: 500, color: "var(--text-secondary)", textAlign: "right" }}>Points</td>
+            </tr>
+
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td rowSpan={3} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Passing</td>
+              <td style={{ padding: 8 }}>Yard</td><td style={{ padding: 8, textAlign: "right" }}>0.04</td>
+            </tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Touchdown</td><td style={{ padding: 8, textAlign: "right" }}>4</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Interception</td><td style={{ padding: 8, textAlign: "right" }}>-2</td></tr>
+
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td rowSpan={2} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Rushing</td>
+              <td style={{ padding: 8 }}>Yard</td><td style={{ padding: 8, textAlign: "right" }}>0.1</td>
+            </tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Touchdown</td><td style={{ padding: 8, textAlign: "right" }}>6</td></tr>
+
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td rowSpan={3} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Receiving</td>
+              <td style={{ padding: 8 }}>Reception</td><td style={{ padding: 8, textAlign: "right" }}>1</td>
+            </tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Yard</td><td style={{ padding: 8, textAlign: "right" }}>0.1</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Touchdown</td><td style={{ padding: 8, textAlign: "right" }}>6</td></tr>
+
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td style={{ padding: 8, fontWeight: 500 }}>Fumbles</td>
+              <td style={{ padding: 8 }}>Fumble lost</td><td style={{ padding: 8, textAlign: "right" }}>-2</td>
+            </tr>
+
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td style={{ padding: 8, fontWeight: 500 }}>2-Point Conversion</td>
+              <td style={{ padding: 8 }}>Any type</td><td style={{ padding: 8, textAlign: "right" }}>2</td>
+            </tr>
+
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td rowSpan={6} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Kicking</td>
+              <td style={{ padding: 8 }}>Field goal, 0-39 yards</td><td style={{ padding: 8, textAlign: "right" }}>3</td>
+            </tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Field goal, 40-49 yards</td><td style={{ padding: 8, textAlign: "right" }}>4</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Field goal, 50+ yards</td><td style={{ padding: 8, textAlign: "right" }}>5</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Missed field goal</td><td style={{ padding: 8, textAlign: "right" }}>-1</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Extra point</td><td style={{ padding: 8, textAlign: "right" }}>1</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Missed extra point</td><td style={{ padding: 8, textAlign: "right" }}>-1</td></tr>
+
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+              <td rowSpan={6} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Defense/Special Teams</td>
+              <td style={{ padding: 8 }}>Sack</td><td style={{ padding: 8, textAlign: "right" }}>1</td>
+            </tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Interception</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Fumble recovery</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Defensive/special teams touchdown</td><td style={{ padding: 8, textAlign: "right" }}>6</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Safety</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
+            <tr><td style={{ padding: 8 }}>Blocked kick</td><td style={{ padding: 8, textAlign: "right" }}>2</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <div style={section}>

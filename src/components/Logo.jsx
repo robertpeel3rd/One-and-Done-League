@@ -12,7 +12,7 @@ export function Logo() {
         </g>
       </svg>
       <div style={{ textAlign: "center", marginTop: 2 }}>
-        <div style={{ fontSize: 20, fontWeight: 500, lineHeight: 1.2 }}>One and Done</div>
+        <div style={{ fontSize: 20, fontWeight: 500, lineHeight: 1.2 }}>One &amp; Done</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 2 }}>
           <div style={{ width: 24, height: 2, background: "var(--text-accent)" }} />
           <span style={{ fontSize: 13, color: "var(--text-accent)", letterSpacing: 1 }}>LEAGUE</span>
