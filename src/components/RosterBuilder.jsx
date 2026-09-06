@@ -104,8 +104,25 @@ export function RosterBuilder({ team }) {
 
   useEffect(() => {
     async function loadPlayers() {
-      const snap = await getDocs(collection(db, "players"));
-      setPlayers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const [playersSnap, liveScoresSnap] = await Promise.all([
+        getDocs(collection(db, "players")),
+        getDocs(collection(db, "liveScores")),
+      ]);
+      const liveScoresById = {};
+      liveScoresSnap.docs.forEach((d) => {
+        liveScoresById[d.id] = d.data();
+      });
+      setPlayers(
+        playersSnap.docs.map((d) => {
+          const ls = liveScoresById[d.id];
+          return {
+            id: d.id,
+            ...d.data(),
+            projectedPoints: ls?.projectedPoints,
+            weeklyPoints: ls?.weeklyPoints,
+          };
+        })
+      );
     }
     loadPlayers();
   }, []);
