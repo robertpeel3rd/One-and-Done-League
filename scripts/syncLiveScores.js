@@ -6,9 +6,11 @@
 // flat-tier model we tried) — so we compute scoring ourselves here instead,
 // using our own defined, documented rules (see the About tab in the app).
 //
-// Also pulls this week's PROJECTED raw stats from Sleeper and runs them
-// through the same scoring function, so "projected points" reflects our
-// actual league scoring rules rather than Sleeper's generic PPR projection.
+// Also pulls this week's PROJECTED points from Sleeper directly (their own
+// pts_ppr total, not run through our own calcFantasyPoints). Our custom
+// scoring only diverges from standard PPR for kickers and DST tiers, so
+// using Sleeper's own projected total trades a small amount of accuracy at
+// those two positions for a simpler, more reliable calculation overall.
 //
 // Writes running fantasy point totals into Firestore's `liveScores`
 // collection, keyed by player_id. Each player's doc also accumulates a
@@ -116,7 +118,7 @@ async function main() {
     Object.entries(rawStats).filter(([, s]) => s && Object.keys(s).length > 0)
   );
 
-  console.log(`Fetching projected stats for ${season} week ${week}...`);
+  console.log(`Fetching projected points for ${season} week ${week}...`);
   let projMap = {};
   try {
     const projRes = await fetch(
@@ -125,7 +127,9 @@ async function main() {
     if (projRes.ok) {
       const projData = await projRes.json();
       projMap = Object.fromEntries(
-        Object.entries(projData).filter(([, s]) => s && Object.keys(s).length > 0)
+        Object.entries(projData).filter(
+          ([, s]) => s && typeof s.pts_ppr === "number"
+        )
       );
     } else {
       console.warn(`Sleeper projections request failed: ${projRes.status} — skipping projected points this run.`);
@@ -148,7 +152,7 @@ async function main() {
       const points = stats ? calcFantasyPoints(stats) : 0;
 
       const projStats = projMap[playerId];
-      const projectedPoints = projStats ? calcFantasyPoints(projStats) : null;
+      const projectedPoints = projStats ? projStats.pts_ppr : null;
 
       const ref = db.collection("liveScores").doc(playerId);
       const docData = {
