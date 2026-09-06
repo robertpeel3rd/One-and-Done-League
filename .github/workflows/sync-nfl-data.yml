@@ -9,6 +9,10 @@ on:
     - cron: "*/5 0-4 * * 1"
     # Thursday and Monday night windows, 8pm-midnight ET (00:00-04:00 UTC next day)
     - cron: "*/5 0-4 * * 2,5"
+    # Mid-week projection refresh, 8am and 4pm ET, Tue-Sat (12:00 and 20:00 UTC)
+    # so "Projected Points" sort has real data while people are setting lineups,
+    # not just once games have already started.
+    - cron: "0 12,20 * * 2,3,4,5,6"
   workflow_dispatch: {} # allows manually triggering a run from the Actions tab
 
 jobs:
