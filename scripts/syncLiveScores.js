@@ -118,6 +118,11 @@ async function main() {
     Object.entries(rawStats).filter(([, s]) => s && Object.keys(s).length > 0)
   );
 
+  // NOTE: unlike the stats endpoint (an object keyed by player_id), the
+  // projections endpoint returns an ARRAY of entry objects, each with its
+  // own player_id field and the actual projected numbers nested under
+  // entry.stats.pts_ppr. Confirmed against the real 2026 week 1 response —
+  // do not assume the same shape as the stats endpoint here.
   console.log(`Fetching projected points for ${season} week ${week}...`);
   let projMap = {};
   try {
@@ -126,11 +131,14 @@ async function main() {
     );
     if (projRes.ok) {
       const projData = await projRes.json();
-      projMap = Object.fromEntries(
-        Object.entries(projData).filter(
-          ([, s]) => s && typeof s.pts_ppr === "number"
-        )
-      );
+      const entries = Array.isArray(projData) ? projData : [];
+      for (const entry of entries) {
+        const pid = entry?.player_id;
+        const ppr = entry?.stats?.pts_ppr;
+        if (pid && typeof ppr === "number" && ppr > 0) {
+          projMap[pid] = ppr;
+        }
+      }
     } else {
       console.warn(`Sleeper projections request failed: ${projRes.status} — skipping projected points this run.`);
     }
@@ -151,8 +159,7 @@ async function main() {
       const stats = rawStatsMap[playerId];
       const points = stats ? calcFantasyPoints(stats) : 0;
 
-      const projStats = projMap[playerId];
-      const projectedPoints = projStats ? projStats.pts_ppr : null;
+      const projectedPoints = projMap[playerId] ?? null;
 
       const ref = db.collection("liveScores").doc(playerId);
       const docData = {
