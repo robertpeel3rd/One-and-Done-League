@@ -6,8 +6,18 @@
 // flat-tier model we tried) — so we compute scoring ourselves here instead,
 // using our own defined, documented rules (see the About tab in the app).
 //
+// Also pulls this week's PROJECTED raw stats from Sleeper and runs them
+// through the same scoring function, so "projected points" reflects our
+// actual league scoring rules rather than Sleeper's generic PPR projection.
+//
 // Writes running fantasy point totals into Firestore's `liveScores`
-// collection, keyed by player_id. Run frequently during game windows.
+// collection, keyed by player_id. Each player's doc also accumulates a
+// `weeklyPoints` map (one entry per week, e.g. weeklyPoints.3 = 14.2) so a
+// season-to-date total can be computed client-side by summing that map —
+// this avoids overwriting prior weeks' totals, since each player only has
+// a single liveScores doc that's updated in place every run.
+//
+// Run frequently during game windows.
 //
 // No API key needed.
 //
@@ -102,27 +112,56 @@ async function main() {
   );
   if (!res.ok) throw new Error(`Sleeper stats request failed: ${res.status}`);
   const rawStats = await res.json();
+  const rawStatsMap = Object.fromEntries(
+    Object.entries(rawStats).filter(([, s]) => s && Object.keys(s).length > 0)
+  );
 
-  const entries = Object.entries(rawStats).filter(([, s]) => s && Object.keys(s).length > 0);
-
-  console.log(`Computing and writing scores for ${entries.length} players...`);
-  const batchSize = 400;
-  for (let i = 0; i < entries.length; i += batchSize) {
-    const batch = db.batch();
-    const chunk = entries.slice(i, i + batchSize);
-    for (const [playerId, stats] of chunk) {
-      const points = calcFantasyPoints(stats);
-      const ref = db.collection("liveScores").doc(playerId);
-      batch.set(
-        ref,
-        {
-          points,
-          week,
-          season,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
+  console.log(`Fetching projected stats for ${season} week ${week}...`);
+  let projMap = {};
+  try {
+    const projRes = await fetch(
+      `https://api.sleeper.app/projections/nfl/${season}/${week}?season_type=regular`
+    );
+    if (projRes.ok) {
+      const projData = await projRes.json();
+      projMap = Object.fromEntries(
+        Object.entries(projData).filter(([, s]) => s && Object.keys(s).length > 0)
       );
+    } else {
+      console.warn(`Sleeper projections request failed: ${projRes.status} — skipping projected points this run.`);
+    }
+  } catch (err) {
+    console.warn(`Sleeper projections request errored: ${err.message} — skipping projected points this run.`);
+  }
+
+  const allPlayerIds = Array.from(
+    new Set([...Object.keys(rawStatsMap), ...Object.keys(projMap)])
+  );
+
+  console.log(`Computing and writing scores for ${allPlayerIds.length} players...`);
+  const batchSize = 400;
+  for (let i = 0; i < allPlayerIds.length; i += batchSize) {
+    const batch = db.batch();
+    const chunk = allPlayerIds.slice(i, i + batchSize);
+    for (const playerId of chunk) {
+      const stats = rawStatsMap[playerId];
+      const points = stats ? calcFantasyPoints(stats) : 0;
+
+      const projStats = projMap[playerId];
+      const projectedPoints = projStats ? calcFantasyPoints(projStats) : null;
+
+      const ref = db.collection("liveScores").doc(playerId);
+      const docData = {
+        points,
+        week,
+        season,
+        [`weeklyPoints.${week}`]: points,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (projectedPoints !== null) {
+        docData.projectedPoints = projectedPoints;
+      }
+      batch.set(ref, docData, { merge: true });
     }
     await batch.commit();
   }

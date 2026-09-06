@@ -10,7 +10,9 @@ const ESPN_TO_SLEEPER_TEAM = {
   WSH: "WAS",
 };
 
-async function fetchCurrentWeekKickoffs() {
+// Returns a map of team abbreviation -> { kickoffTime, opponent, isHome }
+// for every team playing this week, derived from ESPN's scoreboard data.
+async function fetchCurrentWeekGameInfo() {
   console.log("Fetching current NFL week...");
   const stateRes = await fetch("https://api.sleeper.app/v1/state/nfl");
   const state = await stateRes.json();
@@ -26,23 +28,34 @@ async function fetchCurrentWeekKickoffs() {
   }
   const data = await scoreboardRes.json();
   const events = data.events || [];
-  const kickoffByTeam = {};
+  const gameInfoByTeam = {};
   for (const event of events) {
     const kickoffISO = event.date;
     const competitors = event.competitions?.[0]?.competitors || [];
-    for (const c of competitors) {
-      let abbr = c.team?.abbreviation;
-      if (!abbr) continue;
-      abbr = ESPN_TO_SLEEPER_TEAM[abbr] || abbr;
-      kickoffByTeam[abbr] = kickoffISO;
-    }
+    if (competitors.length !== 2) continue;
+    const [a, b] = competitors;
+    let abbrA = a.team?.abbreviation;
+    let abbrB = b.team?.abbreviation;
+    if (!abbrA || !abbrB) continue;
+    abbrA = ESPN_TO_SLEEPER_TEAM[abbrA] || abbrA;
+    abbrB = ESPN_TO_SLEEPER_TEAM[abbrB] || abbrB;
+    gameInfoByTeam[abbrA] = {
+      kickoffTime: kickoffISO,
+      opponent: abbrB,
+      isHome: a.homeAway === "home",
+    };
+    gameInfoByTeam[abbrB] = {
+      kickoffTime: kickoffISO,
+      opponent: abbrA,
+      isHome: b.homeAway === "home",
+    };
   }
-  return kickoffByTeam;
+  return gameInfoByTeam;
 }
 
 async function main() {
   const db = initFirebase();
-  const kickoffByTeam = await fetchCurrentWeekKickoffs();
+  const gameInfoByTeam = await fetchCurrentWeekGameInfo();
 
   console.log("Fetching full player list from Sleeper...");
   const res = await fetch("https://api.sleeper.app/v1/players/nfl");
@@ -63,13 +76,16 @@ async function main() {
     const chunk = activePlayers.slice(i, i + batchSize);
     for (const [playerId, p] of chunk) {
       const ref = db.collection("players").doc(playerId);
+      const info = gameInfoByTeam[p.team];
       batch.set(
         ref,
         {
           name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim(),
           pos: p.position === "DEF" ? "DST" : p.position,
           team: p.team,
-          kickoffTime: kickoffByTeam[p.team] || null,
+          kickoffTime: info?.kickoffTime || null,
+          opponent: info?.opponent || null,
+          isHome: info?.isHome ?? null,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }

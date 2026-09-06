@@ -13,6 +13,12 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
 
+const SORT_OPTIONS = [
+  { key: "az", label: "A-Z" },
+  { key: "projected", label: "Projected Points" },
+  { key: "season", label: "Season Total" },
+];
+
 function lastName(fullName = "") {
   const parts = fullName.trim().split(" ");
   return parts[parts.length - 1] || fullName;
@@ -27,14 +33,54 @@ function isGameStarted(kickoffTime) {
   return Date.now() >= new Date(kickoffTime).getTime();
 }
 
-function formatKickoffET(kickoffTime) {
+// Compact kickoff display: always includes the day, drops "ET" and spells
+// out AM/PM as a lowercase a/p instead (e.g. "Sun 1:00p", "Thu 8:35p").
+function formatKickoffCompact(kickoffTime) {
   if (!kickoffTime) return null;
-  return new Date(kickoffTime).toLocaleString("en-US", {
+  const formatted = new Date(kickoffTime).toLocaleString("en-US", {
     timeZone: "America/New_York",
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
+  return formatted.replace(",", "").replace(" AM", "a").replace(" PM", "p");
+}
+
+function seasonTotalFor(player) {
+  if (!player.weeklyPoints) return 0;
+  return Object.values(player.weeklyPoints).reduce(
+    (sum, v) => sum + (Number(v) || 0),
+    0
+  );
+}
+
+function sortPickerPool(pool, sortMode) {
+  if (sortMode === "projected") {
+    return [...pool].sort((a, b) => {
+      const aHas = typeof a.projectedPoints === "number";
+      const bHas = typeof b.projectedPoints === "number";
+      if (aHas !== bHas) return aHas ? -1 : 1;
+      if (aHas && bHas && b.projectedPoints !== a.projectedPoints) {
+        return b.projectedPoints - a.projectedPoints;
+      }
+      return lastName(a.name).localeCompare(lastName(b.name));
+    });
+  }
+  if (sortMode === "season") {
+    return [...pool].sort((a, b) => {
+      const aTotal = seasonTotalFor(a);
+      const bTotal = seasonTotalFor(b);
+      const aHas = aTotal > 0;
+      const bHas = bTotal > 0;
+      if (aHas !== bHas) return aHas ? -1 : 1;
+      if (aHas && bHas && bTotal !== aTotal) return bTotal - aTotal;
+      return lastName(a.name).localeCompare(lastName(b.name));
+    });
+  }
+  return [...pool].sort((a, b) =>
+    lastName(a.name).localeCompare(lastName(b.name))
+  );
 }
 
 export function RosterBuilder({ team }) {
@@ -46,6 +92,7 @@ export function RosterBuilder({ team }) {
   const [loading, setLoading] = useState(true);
   const [pickerSlot, setPickerSlot] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortMode, setSortMode] = useState("az");
   const [saveStatus, setSaveStatus] = useState("idle");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -104,6 +151,7 @@ export function RosterBuilder({ team }) {
   function openPicker(slotIndex) {
     setPickerSlot(slotIndex);
     setSearchTerm("");
+    setSortMode("az");
   }
 
   function closePicker() {
@@ -154,7 +202,7 @@ export function RosterBuilder({ team }) {
     if (pickerSlot === null) return [];
     const pos = SLOTS[pickerSlot];
     const term = searchTerm.trim().toLowerCase();
-    return players
+    const filtered = players
       .filter((p) => (pos === "FLEX" ? FLEX_ELIGIBLE.includes(p.pos) : p.pos === pos))
       .filter((p) => !term || (p.name || "").toLowerCase().includes(term))
       .map((p) => {
@@ -165,9 +213,9 @@ export function RosterBuilder({ team }) {
         const gameStarted = isGameStarted(p.kickoffTime);
         const locked = usedElsewhereThisWeek || usedInPastWeek || gameStarted;
         return { ...p, locked, gameStarted };
-      })
-      .sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)));
-  }, [pickerSlot, players, searchTerm, localSlots, usedPlayerIds]);
+      });
+    return sortPickerPool(filtered, sortMode);
+  }, [pickerSlot, players, searchTerm, localSlots, usedPlayerIds, sortMode]);
 
   if (weekLoading || loading || selectedWeek === null) return <p>Loading your lineup...</p>;
 
@@ -215,6 +263,28 @@ export function RosterBuilder({ team }) {
                   style={{ width: "100%", marginBottom: 8 }}
                   autoFocus
                 />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Sort</span>
+                  {SORT_OPTIONS.map((opt) => {
+                    const active = sortMode === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => setSortMode(opt.key)}
+                        style={{
+                          fontSize: 12,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          background: active ? "var(--text-accent)" : "transparent",
+                          color: active ? "var(--surface-2)" : "var(--text-secondary)",
+                          border: active ? "none" : "0.5px solid var(--border-strong)",
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto", marginBottom: 8 }}>
                   {pickerPool.map((p) => (
                     <button
@@ -226,7 +296,12 @@ export function RosterBuilder({ team }) {
                       {p.name}{" "}
                       <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
                         {p.pos} · {p.team}
-                        {!p.gameStarted && p.kickoffTime && ` · ${formatKickoffET(p.kickoffTime)} ET`}
+                        {!p.gameStarted && p.kickoffTime && (
+                          <>
+                            {" "}· {formatKickoffCompact(p.kickoffTime)}
+                            {p.opponent ? ` ${p.isHome ? "vs" : "@"} ${p.opponent}` : ""}
+                          </>
+                        )}
                       </span>
                     </button>
                   ))}
