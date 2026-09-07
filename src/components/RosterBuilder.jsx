@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   doc,
@@ -12,6 +12,8 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
+const SAVE_DEBOUNCE_MS = 1000;
+const SAVED_DISPLAY_MS = 2000;
 
 const SORT_OPTIONS = [
   { key: "az", label: "A-Z" },
@@ -83,6 +85,26 @@ function sortPickerPool(pool, sortMode) {
   );
 }
 
+// Small lock glyph matching the app header logo's blue accent styling
+// (a real line-drawn icon, not an emoji). Appears only on locked slots.
+function LockIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--text-accent)"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
 export function RosterBuilder({ team }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
   const [selectedWeek, setSelectedWeek] = useState(null);
@@ -93,8 +115,23 @@ export function RosterBuilder({ team }) {
   const [pickerSlot, setPickerSlot] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState("az");
-  const [saveStatus, setSaveStatus] = useState("idle");
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Auto-save status: which slot indices are currently in a save cycle, and
+  // what that cycle's status is. Only rows in `slots` show a non-default
+  // button label; every other row just shows its normal "Edit"/lock state.
+  const [saveState, setSaveState] = useState({ status: "idle", slots: new Set() });
+  const [wobbleKeys, setWobbleKeys] = useState({});
+
+  // Refs so the debounced save (a setTimeout callback) always reads the
+  // latest local edits, never a stale closure snapshot.
+  const localSlotsRef = useRef(localSlots);
+  const pendingChangesRef = useRef(new Set());
+  const debounceTimerRef = useRef(null);
+  const saveTokenRef = useRef(0);
+
+  useEffect(() => {
+    localSlotsRef.current = localSlots;
+  }, [localSlots]);
 
   useEffect(() => {
     if (currentWeek && selectedWeek === null) {
@@ -142,8 +179,7 @@ export function RosterBuilder({ team }) {
     if (selectedWeek === null) return;
     const savedLineup = allLineups.find((l) => l.week === selectedWeek);
     setLocalSlots(savedLineup?.slots || {});
-    setHasUnsavedChanges(false);
-    setSaveStatus("idle");
+    setSaveState({ status: "idle", slots: new Set() });
   }, [selectedWeek, allLineups]);
 
   const isReadOnly = selectedWeek !== currentWeek;
@@ -176,11 +212,85 @@ export function RosterBuilder({ team }) {
     setSearchTerm("");
   }
 
+  function triggerWobble(slotIndex) {
+    setWobbleKeys((prev) => ({ ...prev, [slotIndex]: (prev[slotIndex] || 0) + 1 }));
+  }
+
+  // Performs the actual Firestore write for a specific week/slots snapshot.
+  // Real await + try/catch, UI only ever reflects a confirmed successful
+  // write — never an optimistic assumption. This preserves the exact
+  // pattern required by the historical "picks silently didn't save" bug
+  // fix; see future-improvements.md for the full writeup if this is ever
+  // touched again.
+  async function performSave(weekToSave, slotsToSave, slotIndices) {
+    const myToken = ++saveTokenRef.current;
+    setSaveState({ status: "saving", slots: new Set(slotIndices) });
+    try {
+      const ref = doc(db, "lineups", lineupDocId(team.id, weekToSave));
+      await setDoc(ref, { teamId: team.id, week: weekToSave, slots: slotsToSave });
+      setAllLineups((prev) => {
+        const existingIdx = prev.findIndex((l) => l.week === weekToSave);
+        const updated = { teamId: team.id, week: weekToSave, slots: slotsToSave };
+        if (existingIdx === -1) return [...prev, updated];
+        const next = [...prev];
+        next[existingIdx] = updated;
+        return next;
+      });
+      if (saveTokenRef.current === myToken) {
+        setSaveState({ status: "saved", slots: new Set(slotIndices) });
+        setTimeout(() => {
+          if (saveTokenRef.current === myToken) {
+            setSaveState({ status: "idle", slots: new Set() });
+          }
+        }, SAVED_DISPLAY_MS);
+      }
+    } catch (err) {
+      if (saveTokenRef.current === myToken) {
+        setSaveState({ status: "error", slots: new Set(slotIndices) });
+      }
+      // No manual retry — the next edit (to any slot) schedules a fresh
+      // save of the entire current localSlots, which naturally retries
+      // whatever failed here too.
+    }
+  }
+
+  // Debounces ~1s after the last change in a burst before actually saving,
+  // so picking several players quickly doesn't fire several separate writes.
+  function scheduleSave(slotIndex) {
+    pendingChangesRef.current.add(slotIndex);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    const weekAtEditTime = selectedWeek;
+    debounceTimerRef.current = setTimeout(() => {
+      const slotIndices = Array.from(pendingChangesRef.current);
+      pendingChangesRef.current = new Set();
+      debounceTimerRef.current = null;
+      performSave(weekAtEditTime, localSlotsRef.current, slotIndices);
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  // Immediately flushes any pending debounced save rather than letting it
+  // fire later against a since-overwritten localSlots ref. Called right
+  // before switching weeks, since the week-switch effect above resets
+  // localSlots to the newly-selected week's saved data — without this
+  // flush, a still-pending save could end up writing the WRONG week's data
+  // to the OLD week's document once the debounce timer eventually fired.
+  function flushPendingSave() {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    if (pendingChangesRef.current.size > 0) {
+      const slotIndices = Array.from(pendingChangesRef.current);
+      pendingChangesRef.current = new Set();
+      performSave(selectedWeek, localSlotsRef.current, slotIndices);
+    }
+  }
+
   function confirmPick(playerId) {
     if (pickerSlot === null || !playerId) return;
-    setLocalSlots((prev) => ({ ...prev, [pickerSlot]: playerId }));
-    setHasUnsavedChanges(true);
-    setSaveStatus("idle");
+    const slotIndex = pickerSlot;
+    setLocalSlots((prev) => ({ ...prev, [slotIndex]: playerId }));
+    scheduleSave(slotIndex);
     closePicker();
   }
 
@@ -191,28 +301,7 @@ export function RosterBuilder({ team }) {
       delete next[slotIndex];
       return next;
     });
-    setHasUnsavedChanges(true);
-    setSaveStatus("idle");
-  }
-
-  async function saveLineup() {
-    setSaveStatus("saving");
-    try {
-      const ref = doc(db, "lineups", lineupDocId(team.id, selectedWeek));
-      await setDoc(ref, { teamId: team.id, week: selectedWeek, slots: localSlots });
-      setAllLineups((prev) => {
-        const existingIdx = prev.findIndex((l) => l.week === selectedWeek);
-        const updated = { teamId: team.id, week: selectedWeek, slots: localSlots };
-        if (existingIdx === -1) return [...prev, updated];
-        const next = [...prev];
-        next[existingIdx] = updated;
-        return next;
-      });
-      setHasUnsavedChanges(false);
-      setSaveStatus("saved");
-    } catch (err) {
-      setSaveStatus("error");
-    }
+    scheduleSave(slotIndex);
   }
 
   const pickerPool = useMemo(() => {
@@ -237,6 +326,7 @@ export function RosterBuilder({ team }) {
   if (weekLoading || loading || selectedWeek === null) return <p>Loading your lineup...</p>;
 
   const weekOptions = Array.from({ length: currentWeek }, (_, i) => i + 1);
+  const pickerHasPlayer = pickerSlot !== null && Boolean(localSlots[pickerSlot]);
 
   return (
     <div style={{ maxWidth: 480 }}>
@@ -244,7 +334,11 @@ export function RosterBuilder({ team }) {
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
         <select
           value={selectedWeek}
-          onChange={(e) => { setSelectedWeek(Number(e.target.value)); closePicker(); }}
+          onChange={(e) => {
+            flushPendingSave();
+            setSelectedWeek(Number(e.target.value));
+            closePicker();
+          }}
         >
           {weekOptions.map((w) => (
             <option key={w} value={w}>{w}</option>
@@ -325,14 +419,42 @@ export function RosterBuilder({ team }) {
                   {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No matches.</p>}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={closePicker}>Cancel</button>
+                  <button onClick={closePicker} style={{ flex: 1 }}>Cancel</button>
+                  <button
+                    onClick={() => {
+                      clearSlot(idx);
+                      closePicker();
+                    }}
+                    disabled={!pickerHasPlayer}
+                    style={{
+                      flex: 1,
+                      color: pickerHasPlayer ? "var(--text-danger)" : "var(--text-muted)",
+                      border: pickerHasPlayer ? "1px solid var(--text-danger)" : "1px solid var(--border)",
+                      opacity: pickerHasPlayer ? 1 : 0.5,
+                    }}
+                  >
+                    Clear
+                  </button>
                 </div>
               </div>
             );
           }
 
+          const isSaving = saveState.status === "saving" && saveState.slots.has(idx);
+          const isSaved = saveState.status === "saved" && saveState.slots.has(idx);
+          const isError = saveState.status === "error" && saveState.slots.has(idx);
+          const isCompact = isSaving || isSaved;
+
           return (
-            <div key={idx} style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
+            <div
+              key={`slot-${idx}-${wobbleKeys[idx] || 0}`}
+              style={{
+                display: "flex",
+                alignItems: "stretch",
+                gap: 8,
+                animation: wobbleKeys[idx] ? "oadWobble 0.5s cubic-bezier(.36,.07,.19,.97)" : "none",
+              }}
+            >
               <div
                 style={{
                   width: 44,
@@ -366,20 +488,65 @@ export function RosterBuilder({ team }) {
                     <>
                       {player.name}{" "}
                       <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({player.team})</span>
-                      {locked && (
-                        <span style={{ color: "var(--text-danger)", fontSize: 11, marginLeft: 6 }}>locked</span>
-                      )}
                     </>
                   ) : (
                     <span style={{ color: "var(--text-muted)" }}>empty</span>
                   )}
                 </span>
+
                 {!isReadOnly && (
-                  <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 8 }}>
-                    <button onClick={() => openPicker(idx)} disabled={locked}>
-                      {player ? "swap" : "pick"}
-                    </button>
-                    {player && <button onClick={() => clearSlot(idx)} disabled={locked}>clear</button>}
+                  <div style={{ width: 64, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {locked ? (
+                      <button
+                        onClick={() => triggerWobble(idx)}
+                        aria-label="Locked — game has started"
+                        style={{
+                          width: 32,
+                          height: 32,
+                          minHeight: 32,
+                          boxSizing: "border-box",
+                          borderRadius: "50%",
+                          border: "1.5px solid var(--text-accent)",
+                          background: "var(--bg-accent)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 0,
+                        }}
+                      >
+                        <LockIcon />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => openPicker(idx)}
+                        style={{
+                          height: 32,
+                          minHeight: 32,
+                          boxSizing: "border-box",
+                          padding: isCompact ? "0 8px" : "0 16px",
+                          fontSize: isCompact ? 12 : 13,
+                          borderRadius: "var(--radius)",
+                          border: isCompact
+                            ? "1px solid var(--text-success)"
+                            : isError
+                            ? "1px solid var(--text-danger)"
+                            : "1px solid var(--border-strong)",
+                          background: isCompact ? "var(--bg-success)" : "var(--surface-2)",
+                          color: isCompact
+                            ? "var(--text-success)"
+                            : isError
+                            ? "var(--text-danger)"
+                            : "var(--text-secondary)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 4,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {isSaving ? "Saving..." : isSaved ? "✓ Saved" : isError ? "⚠ Error" : "Edit"}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -387,35 +554,6 @@ export function RosterBuilder({ team }) {
           );
         })}
       </div>
-
-      {!isReadOnly && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <button
-            onClick={saveLineup}
-            disabled={!hasUnsavedChanges || saveStatus === "saving"}
-            style={{
-              fontWeight: 500,
-              background: hasUnsavedChanges ? "var(--bg-accent)" : undefined,
-              color: hasUnsavedChanges ? "var(--text-accent)" : undefined,
-            }}
-          >
-            {saveStatus === "saving" ? "Saving..." : "Save Lineup"}
-          </button>
-          {saveStatus === "saved" && (
-            <p style={{ fontSize: 13, color: "var(--text-accent)", margin: 0 }}>Lineup saved.</p>
-          )}
-          {saveStatus === "error" && (
-            <p style={{ fontSize: 13, color: "var(--text-danger)", margin: 0 }}>
-              Couldn't save your lineup. Check your connection and try again.
-            </p>
-          )}
-          {hasUnsavedChanges && saveStatus === "idle" && (
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
-              You have unsaved changes.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }

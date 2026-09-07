@@ -157,9 +157,14 @@ async function main() {
     const chunk = allPlayerIds.slice(i, i + batchSize);
     for (const playerId of chunk) {
       const stats = rawStatsMap[playerId];
-      const points = stats ? calcFantasyPoints(stats) : 0;
-
       const projectedPoints = projMap[playerId] ?? null;
+
+      // Don't touch a player's doc at all if they're absent from BOTH this
+      // run's real stats and projections — a transient Sleeper data gap
+      // should never silently zero out a real, already-correct score.
+      if (!stats && projectedPoints === null) continue;
+
+      const points = stats ? calcFantasyPoints(stats) : 0;
 
       const ref = db.collection("liveScores").doc(playerId);
       const docData = {

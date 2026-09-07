@@ -22,6 +22,8 @@ html, body {
   --bg-accent: #e6f1fb;
   --text-accent: #185fa5;
   --text-danger: #a32d2d;
+  --bg-success: #e7f5ec;
+  --text-success: #1e7d42;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -37,6 +39,8 @@ html, body {
     --bg-accent: #1c2b45;
     --text-accent: #85b7eb;
     --text-danger: #e29494;
+    --bg-success: #1c3324;
+    --text-success: #7fce9c;
   }
 }
 
@@ -83,4 +87,17 @@ a {
   h2 {
     font-size: 1.15rem;
   }
+}
+
+/* Used by RosterBuilder's locked-slot button to give clear "can't do that"
+   feedback on tap — a sharp snap that settles out, not a gentle sway. */
+@keyframes oadWobble {
+  0% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-8px) rotate(-2deg); }
+  30% { transform: translateX(7px) rotate(2deg); }
+  45% { transform: translateX(-6px) rotate(-1.5deg); }
+  60% { transform: translateX(5px) rotate(1.5deg); }
+  75% { transform: translateX(-3px) rotate(-1deg); }
+  90% { transform: translateX(2px) rotate(0.5deg); }
+  100% { transform: translateX(0) rotate(0deg); }
 }

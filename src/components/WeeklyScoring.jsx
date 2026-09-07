@@ -34,7 +34,7 @@ export function WeeklyScoring({ myTeamId }) {
     setLineups(lineupsSnap.docs.map((d) => d.data()));
     const scoreMap = {};
     scoresSnap.docs.forEach((d) => {
-      scoreMap[d.id] = d.data().points || 0;
+      scoreMap[d.id] = d.data();
     });
     setScoresByPlayer(scoreMap);
     setLoading(false);
@@ -57,6 +57,21 @@ export function WeeklyScoring({ myTeamId }) {
     return map;
   }, [players]);
 
+  // Reads a specific week's score for a player, using the weeklyPoints map
+  // (which preserves history across weeks) rather than the single top-level
+  // `points` field, which only ever reflects whichever week was most
+  // recently synced. Falls back to `.points` only for the live current
+  // week, in case that week's weeklyPoints entry hasn't been written yet.
+  function pointsForWeek(playerId, week) {
+    const doc = scoresByPlayer[playerId];
+    if (!doc) return 0;
+    if (doc.weeklyPoints && typeof doc.weeklyPoints[week] === "number") {
+      return doc.weeklyPoints[week];
+    }
+    if (week === currentWeek) return doc.points || 0;
+    return 0;
+  }
+
   const teamRows = useMemo(() => {
     if (teams.length === 0 || !selectedWeek) return [];
     return teams
@@ -66,14 +81,14 @@ export function WeeklyScoring({ myTeamId }) {
         const slotEntries = SLOTS.map((pos, idx) => {
           const playerId = slots[idx];
           const player = playerId ? playerById[playerId] : null;
-          const pts = playerId ? scoresByPlayer[playerId] || 0 : 0;
+          const pts = playerId ? pointsForWeek(playerId, selectedWeek) : 0;
           return { pos, player, pts };
         });
         const total = Math.round(slotEntries.reduce((sum, s) => sum + s.pts, 0) * 10) / 10;
         return { team: t, slotEntries, total };
       })
       .sort((a, b) => b.total - a.total);
-  }, [teams, lineups, scoresByPlayer, playerById, selectedWeek]);
+  }, [teams, lineups, scoresByPlayer, playerById, selectedWeek, currentWeek]);
 
   if (loading || weekLoading || selectedWeek === null) return <p>Loading weekly scoring...</p>;
   if (teams.length === 0) return <p>No teams yet.</p>;

@@ -27,7 +27,7 @@ export function Standings({ myTeamId }) {
 
     const scoreMap = {};
     scoresSnap.docs.forEach((d) => {
-      scoreMap[d.id] = d.data().points || 0;
+      scoreMap[d.id] = d.data();
     });
     setScoresByPlayer(scoreMap);
 
@@ -52,10 +52,25 @@ export function Standings({ myTeamId }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Reads a specific week's score for a player, using the weeklyPoints map
+  // (which preserves history across weeks) rather than the single top-level
+  // `points` field, which only ever reflects whichever week was most
+  // recently synced. Falls back to `.points` only for the live current
+  // week, in case that week's weeklyPoints entry hasn't been written yet.
+  function pointsForWeek(playerId, week) {
+    const doc = scoresByPlayer[playerId];
+    if (!doc) return 0;
+    if (doc.weeklyPoints && typeof doc.weeklyPoints[week] === "number") {
+      return doc.weeklyPoints[week];
+    }
+    if (week === currentWeek) return doc.points || 0;
+    return 0;
+  }
+
   function weeklyTotal(teamId, week) {
     const lineup = lineups.find((l) => l.teamId === teamId && l.week === week);
     if (!lineup || !lineup.slots) return 0;
-    return Object.values(lineup.slots).reduce((sum, playerId) => sum + (scoresByPlayer[playerId] || 0), 0);
+    return Object.values(lineup.slots).reduce((sum, playerId) => sum + pointsForWeek(playerId, week), 0);
   }
 
   function leaguePointsForWeek(week) {
