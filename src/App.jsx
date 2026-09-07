@@ -60,7 +60,16 @@ function App() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "1rem", width: "100%", flex: 1 }}>
+      <div
+        style={{
+          maxWidth: 480,
+          margin: "0 auto",
+          padding: "1rem",
+          paddingBottom: "calc(1rem + 64px + env(safe-area-inset-bottom))",
+          width: "100%",
+          flex: 1,
+        }}
+      >
         <Logo />
         {!user && (
           <div style={{ textAlign: "center" }}>

@@ -2,8 +2,8 @@ export function MoreMenu({ options, onSelect }) {
   return (
     <div
       style={{
-        position: "absolute",
-        bottom: 60,
+        position: "fixed",
+        bottom: "calc(64px + env(safe-area-inset-bottom))",
         right: 8,
         background: "var(--surface-2)",
         border: "0.5px solid var(--border)",
@@ -11,7 +11,7 @@ export function MoreMenu({ options, onSelect }) {
         overflow: "hidden",
         boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
         minWidth: 160,
-        zIndex: 20,
+        zIndex: 101,
       }}
     >
       {options.map((opt, i) => (

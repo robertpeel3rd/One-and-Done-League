@@ -17,8 +17,12 @@ export function BottomNav({ tabs, activeTab, onSelect }) {
         borderTop: "0.5px solid var(--border)",
         background: "var(--surface-2)",
         padding: "6px 4px",
-        position: "sticky",
+        paddingBottom: "calc(6px + env(safe-area-inset-bottom))",
+        position: "fixed",
         bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
       }}
     >
       {tabs.map((tab) => {
