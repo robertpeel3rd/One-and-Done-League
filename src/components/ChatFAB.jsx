@@ -256,7 +256,7 @@ export function ChatFAB({ user }) {
         <>
           <div
             onClick={closeChat}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 95 }}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 150 }}
           />
           <div
             style={{
@@ -268,7 +268,7 @@ export function ChatFAB({ user }) {
               background: "var(--surface-2)",
               borderRadius: "16px 16px 0 0",
               boxShadow: "0 -4px 16px rgba(0,0,0,0.2)",
-              zIndex: 96,
+              zIndex: 151,
               display: "flex",
               flexDirection: "column",
               transform: `translateY(${dragY}px)`,
