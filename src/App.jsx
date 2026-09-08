@@ -66,7 +66,7 @@ function App() {
           maxWidth: 480,
           margin: "0 auto",
           padding: "1rem",
-          paddingBottom: "calc(1rem + 64px + env(safe-area-inset-bottom))",
+          paddingBottom: "calc(1rem + 64px + 100px + env(safe-area-inset-bottom))",
           width: "100%",
           flex: 1,
         }}

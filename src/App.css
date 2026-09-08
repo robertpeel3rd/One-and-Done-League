@@ -22,6 +22,7 @@ html, body {
   --bg-accent: #e6f1fb;
   --text-accent: #185fa5;
   --text-danger: #a32d2d;
+  --bg-danger: #fbeaea;
   --bg-success: #e7f5ec;
   --text-success: #1e7d42;
 }
@@ -39,6 +40,7 @@ html, body {
     --bg-accent: #1c2b45;
     --text-accent: #85b7eb;
     --text-danger: #e29494;
+    --bg-danger: #3a1f1f;
     --bg-success: #1c3324;
     --text-success: #7fce9c;
   }

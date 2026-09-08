@@ -13,13 +13,108 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
 const SAVE_DEBOUNCE_MS = 1000;
-const SAVED_DISPLAY_MS = 2000;
+const SAVED_DISPLAY_MS = 2500;
 
 const SORT_OPTIONS = [
   { key: "az", label: "A-Z" },
   { key: "projected", label: "Projected Points" },
   { key: "season", label: "Season Total" },
 ];
+
+// Exact styling for each global save-status-bar state, per the mocked and
+// approved design (see future-improvements.md). "saved" is deliberately
+// exaggerated — bigger, bold, solid background — and deliberately uses
+// fixed colors rather than the theme's pale success tokens, since a SOLID
+// attention-grabbing background needs light text regardless of light/dark
+// mode (unlike the pale tinted backgrounds used everywhere else, which
+// correctly invert with the theme).
+const STATUS_BAR_CONFIG = {
+  idle: {
+    icon: "✓",
+    text: "All changes saved",
+    background: "var(--bg-success)",
+    color: "var(--text-success)",
+    fontSize: 13,
+    fontWeight: 500,
+    iconSize: 14,
+    padding: "8px 12px",
+    boxShadow: "none",
+    opacity: 1,
+  },
+  pending: {
+    icon: "✓",
+    text: "All changes saved",
+    background: "var(--bg-success)",
+    color: "var(--text-success)",
+    fontSize: 13,
+    fontWeight: 500,
+    iconSize: 14,
+    padding: "8px 12px",
+    boxShadow: "none",
+    opacity: 0.5,
+  },
+  saving: {
+    icon: "●",
+    text: "Saving...",
+    background: "var(--bg-success)",
+    color: "var(--text-success)",
+    fontSize: 13,
+    fontWeight: 600,
+    iconSize: 10,
+    padding: "8px 12px",
+    boxShadow: "none",
+    opacity: 1,
+  },
+  saved: {
+    icon: "✓",
+    text: "Saved!",
+    background: "#1e7d42",
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: 700,
+    iconSize: 17,
+    padding: "12px 14px",
+    boxShadow: "0 2px 8px rgba(30,125,66,0.35)",
+    opacity: 1,
+  },
+  error: {
+    icon: "⚠",
+    text: "Not Saved",
+    background: "var(--bg-danger)",
+    color: "var(--text-danger)",
+    fontSize: 13,
+    fontWeight: 600,
+    iconSize: 14,
+    padding: "8px 12px",
+    boxShadow: "none",
+    opacity: 1,
+  },
+};
+
+function SaveStatusBar({ status }) {
+  const cfg = STATUS_BAR_CONFIG[status] || STATUS_BAR_CONFIG.idle;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        marginBottom: 8,
+        borderRadius: "var(--radius)",
+        transition: "all 0.3s ease",
+        background: cfg.background,
+        color: cfg.color,
+        fontSize: cfg.fontSize,
+        fontWeight: cfg.fontWeight,
+        padding: cfg.padding,
+        boxShadow: cfg.boxShadow,
+        opacity: cfg.opacity,
+      }}
+    >
+      <span style={{ fontSize: cfg.iconSize }}>{cfg.icon}</span> {cfg.text}
+    </div>
+  );
+}
 
 function lastName(fullName = "") {
   const parts = fullName.trim().split(" ");
@@ -116,10 +211,10 @@ export function RosterBuilder({ team }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState("az");
 
-  // Auto-save status: which slot indices are currently in a save cycle, and
-  // what that cycle's status is. Only rows in `slots` show a non-default
-  // button label; every other row just shows its normal "Edit"/lock state.
-  const [saveState, setSaveState] = useState({ status: "idle", slots: new Set() });
+  // Global save status now — one value for the whole lineup, shown in the
+  // status bar above the list, rather than tracked per-row. States:
+  // "idle" | "pending" | "saving" | "saved" | "error".
+  const [saveStatus, setSaveStatus] = useState("idle");
   const [wobbleKeys, setWobbleKeys] = useState({});
 
   // Refs so the debounced save (a setTimeout callback) always reads the
@@ -179,7 +274,7 @@ export function RosterBuilder({ team }) {
     if (selectedWeek === null) return;
     const savedLineup = allLineups.find((l) => l.week === selectedWeek);
     setLocalSlots(savedLineup?.slots || {});
-    setSaveState({ status: "idle", slots: new Set() });
+    setSaveStatus("idle");
   }, [selectedWeek, allLineups]);
 
   const isReadOnly = selectedWeek !== currentWeek;
@@ -222,9 +317,9 @@ export function RosterBuilder({ team }) {
   // pattern required by the historical "picks silently didn't save" bug
   // fix; see future-improvements.md for the full writeup if this is ever
   // touched again.
-  async function performSave(weekToSave, slotsToSave, slotIndices) {
+  async function performSave(weekToSave, slotsToSave) {
     const myToken = ++saveTokenRef.current;
-    setSaveState({ status: "saving", slots: new Set(slotIndices) });
+    setSaveStatus("saving");
     try {
       const ref = doc(db, "lineups", lineupDocId(team.id, weekToSave));
       await setDoc(ref, { teamId: team.id, week: weekToSave, slots: slotsToSave });
@@ -237,16 +332,16 @@ export function RosterBuilder({ team }) {
         return next;
       });
       if (saveTokenRef.current === myToken) {
-        setSaveState({ status: "saved", slots: new Set(slotIndices) });
+        setSaveStatus("saved");
         setTimeout(() => {
           if (saveTokenRef.current === myToken) {
-            setSaveState({ status: "idle", slots: new Set() });
+            setSaveStatus("idle");
           }
         }, SAVED_DISPLAY_MS);
       }
     } catch (err) {
       if (saveTokenRef.current === myToken) {
-        setSaveState({ status: "error", slots: new Set(slotIndices) });
+        setSaveStatus("error");
       }
       // No manual retry — the next edit (to any slot) schedules a fresh
       // save of the entire current localSlots, which naturally retries
@@ -255,16 +350,19 @@ export function RosterBuilder({ team }) {
   }
 
   // Debounces ~1s after the last change in a burst before actually saving,
-  // so picking several players quickly doesn't fire several separate writes.
+  // so picking several players quickly doesn't fire several separate
+  // writes. Shows "pending" the instant a change is made (dimmed idle
+  // look, not an alarming red "Not Saved") so there's never a silent gap
+  // with zero feedback between an edit and the debounce firing.
   function scheduleSave(slotIndex) {
     pendingChangesRef.current.add(slotIndex);
+    setSaveStatus("pending");
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     const weekAtEditTime = selectedWeek;
     debounceTimerRef.current = setTimeout(() => {
-      const slotIndices = Array.from(pendingChangesRef.current);
       pendingChangesRef.current = new Set();
       debounceTimerRef.current = null;
-      performSave(weekAtEditTime, localSlotsRef.current, slotIndices);
+      performSave(weekAtEditTime, localSlotsRef.current);
     }, SAVE_DEBOUNCE_MS);
   }
 
@@ -280,9 +378,8 @@ export function RosterBuilder({ team }) {
       debounceTimerRef.current = null;
     }
     if (pendingChangesRef.current.size > 0) {
-      const slotIndices = Array.from(pendingChangesRef.current);
       pendingChangesRef.current = new Set();
-      performSave(selectedWeek, localSlotsRef.current, slotIndices);
+      performSave(selectedWeek, localSlotsRef.current);
     }
   }
 
@@ -330,6 +427,8 @@ export function RosterBuilder({ team }) {
 
   return (
     <div style={{ maxWidth: 480 }}>
+      {!isReadOnly && <SaveStatusBar status={saveStatus} />}
+
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
         <select
@@ -361,12 +460,13 @@ export function RosterBuilder({ team }) {
               <div
                 key={idx}
                 style={{
-                  background: "var(--surface-1)",
+                  background: "var(--bg-accent)",
+                  border: "1px solid var(--text-accent)",
                   borderRadius: "var(--radius)",
                   padding: "0.6rem 0.7rem",
                 }}
               >
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>{pos}</div>
+                <div style={{ fontSize: 12, color: "var(--text-accent)", fontWeight: 500, marginBottom: 6 }}>{pos}</div>
                 <input
                   placeholder={`Search ${pos}s...`}
                   value={searchTerm}
@@ -374,7 +474,7 @@ export function RosterBuilder({ team }) {
                   style={{ width: "100%", marginBottom: 8 }}
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Sort</span>
+                  <span style={{ fontSize: 12, color: "var(--text-accent)" }}>Sort</span>
                   {SORT_OPTIONS.map((opt) => {
                     const active = sortMode === opt.key;
                     return (
@@ -385,9 +485,9 @@ export function RosterBuilder({ team }) {
                           fontSize: 12,
                           padding: "4px 10px",
                           borderRadius: 999,
-                          background: active ? "var(--text-accent)" : "transparent",
-                          color: active ? "var(--surface-2)" : "var(--text-secondary)",
-                          border: active ? "none" : "0.5px solid var(--border-strong)",
+                          background: active ? "var(--text-accent)" : "var(--surface-2)",
+                          color: active ? "var(--surface-2)" : "var(--text-accent)",
+                          border: active ? "none" : "0.5px solid var(--text-accent)",
                         }}
                       >
                         {opt.label}
@@ -401,10 +501,10 @@ export function RosterBuilder({ team }) {
                       key={p.id}
                       onClick={() => !p.locked && confirmPick(p.id)}
                       disabled={p.locked}
-                      style={{ textAlign: "left", opacity: p.locked ? 0.4 : 1 }}
+                      style={{ textAlign: "left", opacity: p.locked ? 0.4 : 1, background: "transparent", border: "none" }}
                     >
                       {p.name}{" "}
-                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                      <span style={{ color: "var(--text-accent)", opacity: 0.75, fontSize: 12 }}>
                         {p.pos} · {p.team}
                         {!p.gameStarted && p.kickoffTime && (
                           <>
@@ -415,10 +515,15 @@ export function RosterBuilder({ team }) {
                       </span>
                     </button>
                   ))}
-                  {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No matches.</p>}
+                  {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-accent)" }}>No matches.</p>}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={closePicker} style={{ flex: 1 }}>Cancel</button>
+                  <button
+                    onClick={closePicker}
+                    style={{ flex: 1, color: "var(--text-accent)", border: "1px solid var(--text-accent)", background: "var(--surface-2)" }}
+                  >
+                    Cancel
+                  </button>
                   <button
                     onClick={() => {
                       clearSlot(idx);
@@ -438,11 +543,6 @@ export function RosterBuilder({ team }) {
               </div>
             );
           }
-
-          const isSaving = saveState.status === "saving" && saveState.slots.has(idx);
-          const isSaved = saveState.status === "saved" && saveState.slots.has(idx);
-          const isError = saveState.status === "error" && saveState.slots.has(idx);
-          const isCompact = isSaving || isSaved;
 
           return (
             <div
@@ -522,28 +622,19 @@ export function RosterBuilder({ team }) {
                           height: 32,
                           minHeight: 32,
                           boxSizing: "border-box",
-                          padding: isCompact ? "0 8px" : "0 16px",
-                          fontSize: isCompact ? 12 : 13,
+                          padding: "0 16px",
+                          fontSize: 13,
                           borderRadius: "var(--radius)",
-                          border: isCompact
-                            ? "1px solid var(--text-success)"
-                            : isError
-                            ? "1px solid var(--text-danger)"
-                            : "1px solid var(--border-strong)",
-                          background: isCompact ? "var(--bg-success)" : "var(--surface-2)",
-                          color: isCompact
-                            ? "var(--text-success)"
-                            : isError
-                            ? "var(--text-danger)"
-                            : "var(--text-secondary)",
+                          border: "1px solid var(--border-strong)",
+                          background: "var(--surface-2)",
+                          color: "var(--text-secondary)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: 4,
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {isSaving ? "Saving..." : isSaved ? "✓ Saved" : isError ? "⚠ Error" : "Edit"}
+                        Edit
                       </button>
                     )}
                   </div>
