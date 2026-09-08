@@ -12,6 +12,7 @@ import { CommissionerTab } from "./components/CommissionerTab";
 import { About } from "./components/About";
 import { BottomNav } from "./components/BottomNav";
 import { MoreMenu } from "./components/MoreMenu";
+import { ChatFAB } from "./components/ChatFAB";
 import { Logo } from "./components/Logo";
 import { signInWithGoogle } from "./lib/firebase";
 
@@ -103,6 +104,8 @@ function App() {
       {user && team && (
         <BottomNav tabs={MAIN_TABS} activeTab={displayTab} onSelect={handleNavSelect} />
       )}
+
+      {user && team && <ChatFAB user={user} />}
     </div>
   );
 }

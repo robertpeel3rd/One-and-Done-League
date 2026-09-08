@@ -54,5 +54,29 @@ service cloud.firestore {
         && request.resource.data.commissionerUids.hasAny([request.auth.uid]);
       allow update: if request.auth != null && isCommissioner();
     }
+
+    // League chat. Anyone signed in can post/read. A message can only be
+    // "soft deleted" (deleted: true) by its own sender — never hard-deleted,
+    // and no other field may change on that update (enforced via
+    // affectedKeys() below), so a delete can't be used to sneak in an edit.
+    match /messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.deleted == false;
+      allow update: if request.auth != null
+        && resource.data.senderId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+        && request.resource.data.deleted == true;
+      allow delete: if false;
+
+      // One reaction per person: doc ID is the reacting user's own uid, so
+      // a person can only ever write their own reaction, and picking a new
+      // emoji naturally overwrites (rather than adds to) their prior one.
+      match /reactions/{userId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
   }
 }
