@@ -372,7 +372,6 @@ export function RosterBuilder({ team }) {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   style={{ width: "100%", marginBottom: 8 }}
-                  autoFocus
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Sort</span>
