@@ -4,11 +4,18 @@ on:
   schedule:
     # Nightly roster/schedule sync — 3am ET (7am UTC)
     - cron: "0 7 * * *"
-    # Live scoring poll every 5 minutes, Sun 1pm-midnight ET (17:00-04:00 UTC)
+    # Live scoring poll every 5 minutes, Sun 1pm-midnight ET.
+    # Widened by an extra hour on the trailing edge (0-5 instead of 0-4)
+    # so this safely covers midnight ET whether ET is currently EDT
+    # (UTC-4, roughly Mar-Nov) or EST (UTC-5, roughly Nov-Mar) — under
+    # EDT the extra hour is just a harmless extra poll past midnight;
+    # under EST it's the difference between actually covering the real
+    # end of the game and cutting off an hour early.
     - cron: "*/5 17-23 * * 0"
-    - cron: "*/5 0-4 * * 1"
-    # Thursday and Monday night windows, 8pm-midnight ET (00:00-04:00 UTC next day)
-    - cron: "*/5 0-4 * * 2,5"
+    - cron: "*/5 0-5 * * 1"
+    # Thursday and Monday night windows, 8pm-midnight ET — same EDT/EST
+    # widening reasoning as above (0-5 instead of 0-4).
+    - cron: "*/5 0-5 * * 2,5"
     # Mid-week projection refresh, 8am and 4pm ET, Tue-Sat (12:00 and 20:00 UTC)
     # so "Projected Points" sort has real data while people are setting lineups,
     # not just once games have already started.

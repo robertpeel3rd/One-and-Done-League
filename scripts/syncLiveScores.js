@@ -159,24 +159,29 @@ async function main() {
       const stats = rawStatsMap[playerId];
       const projectedPoints = projMap[playerId] ?? null;
 
-      // Don't touch a player's doc at all if they're absent from BOTH this
-      // run's real stats and projections — a transient Sleeper data gap
-      // should never silently zero out a real, already-correct score.
       if (!stats && projectedPoints === null) continue;
-
-      const points = stats ? calcFantasyPoints(stats) : 0;
 
       const ref = db.collection("liveScores").doc(playerId);
       const docData = {
-        points,
-        week,
-        season,
-        [`weeklyPoints.${week}`]: points,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
+
+      // Only touch points/weeklyPoints when real stats are actually present
+      // this run. A player missing from THIS run's stats (but still present
+      // in projections, which are usually available all week) must NOT have
+      // their real, already-correct score zeroed out — just leave it alone.
+      if (stats) {
+        const points = calcFantasyPoints(stats);
+        docData.points = points;
+        docData.week = week;
+        docData.season = season;
+        docData[`weeklyPoints.${week}`] = points;
+      }
+
       if (projectedPoints !== null) {
         docData.projectedPoints = projectedPoints;
       }
+
       batch.set(ref, docData, { merge: true });
     }
     await batch.commit();

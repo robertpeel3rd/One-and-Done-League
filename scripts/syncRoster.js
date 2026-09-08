@@ -23,8 +23,8 @@ async function fetchCurrentWeekGameInfo() {
     `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}`
   );
   if (!scoreboardRes.ok) {
-    console.warn(`ESPN schedule request failed: ${scoreboardRes.status}`);
-    return {};
+    console.warn(`ESPN schedule request failed: ${scoreboardRes.status} — leaving existing kickoff/opponent/isHome data untouched this run instead of overwriting it with nulls.`);
+    return null; // null = "the fetch itself failed", distinct from {} = "fetch succeeded, just no data for some team"
   }
   const data = await scoreboardRes.json();
   const events = data.events || [];
@@ -56,6 +56,7 @@ async function fetchCurrentWeekGameInfo() {
 async function main() {
   const db = initFirebase();
   const gameInfoByTeam = await fetchCurrentWeekGameInfo();
+  const scheduleFetchFailed = gameInfoByTeam === null;
 
   console.log("Fetching full player list from Sleeper...");
   const res = await fetch("https://api.sleeper.app/v1/players/nfl");
@@ -68,6 +69,20 @@ async function main() {
     ([, p]) => p.active && p.team && ["QB", "RB", "WR", "TE", "K", "DEF"].includes(p.position)
   );
 
+  // Sanity floor: a real Sleeper response for active NFL players is
+  // typically 800+. If it comes back far lower while still returning
+  // HTTP 200 (a truncated/degraded response, not an outright failure),
+  // treat rosters as unreliable this run — skip both the roster write
+  // AND the later stale-player deletion, rather than risk mass-deleting
+  // real players based on a bad response.
+  const MIN_EXPECTED_ACTIVE_PLAYERS = 500;
+  if (activePlayers.length < MIN_EXPECTED_ACTIVE_PLAYERS) {
+    console.warn(
+      `Only ${activePlayers.length} active players returned by Sleeper (expected ${MIN_EXPECTED_ACTIVE_PLAYERS}+) — this looks like a degraded response, not a real roster. Skipping this run entirely to avoid corrupting or mass-deleting real player data.`
+    );
+    return;
+  }
+
   console.log(`Writing ${activePlayers.length} active players to Firestore...`);
   const activeIds = new Set(activePlayers.map(([id]) => id));
   const batchSize = 400;
@@ -76,20 +91,23 @@ async function main() {
     const chunk = activePlayers.slice(i, i + batchSize);
     for (const [playerId, p] of chunk) {
       const ref = db.collection("players").doc(playerId);
-      const info = gameInfoByTeam[p.team];
-      batch.set(
-        ref,
-        {
-          name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim(),
-          pos: p.position === "DEF" ? "DST" : p.position,
-          team: p.team,
-          kickoffTime: info?.kickoffTime || null,
-          opponent: info?.opponent || null,
-          isHome: info?.isHome ?? null,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const docData = {
+        name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim(),
+        pos: p.position === "DEF" ? "DST" : p.position,
+        team: p.team,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      // Only touch kickoff/opponent/isHome when the ESPN fetch actually
+      // succeeded this run — if it failed, leave whatever was already
+      // there from a previous successful run alone, rather than
+      // overwriting good data with nulls.
+      if (!scheduleFetchFailed) {
+        const info = gameInfoByTeam[p.team];
+        docData.kickoffTime = info?.kickoffTime || null;
+        docData.opponent = info?.opponent || null;
+        docData.isHome = info?.isHome ?? null;
+      }
+      batch.set(ref, docData, { merge: true });
     }
     await batch.commit();
     console.log(`  wrote ${Math.min(i + batchSize, activePlayers.length)}/${activePlayers.length}`);
