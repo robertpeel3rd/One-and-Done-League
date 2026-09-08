@@ -501,10 +501,19 @@ export function RosterBuilder({ team }) {
                       key={p.id}
                       onClick={() => !p.locked && confirmPick(p.id)}
                       disabled={p.locked}
-                      style={{ textAlign: "left", opacity: p.locked ? 0.4 : 1, background: "transparent", border: "none" }}
+                      style={{
+                        textAlign: "left",
+                        opacity: p.locked ? 0.4 : 1,
+                        background: "var(--surface-2)",
+                        border: "none",
+                        borderRadius: "var(--radius)",
+                        padding: "8px 10px",
+                        display: "block",
+                        width: "100%",
+                      }}
                     >
-                      {p.name}{" "}
-                      <span style={{ color: "var(--text-accent)", opacity: 0.75, fontSize: 12 }}>
+                      <div style={{ fontSize: 14 }}>{p.name}</div>
+                      <div style={{ color: "var(--text-accent)", opacity: 0.75, fontSize: 12, marginTop: 1 }}>
                         {p.pos} · {p.team}
                         {!p.gameStarted && p.kickoffTime && (
                           <>
@@ -512,7 +521,7 @@ export function RosterBuilder({ team }) {
                             {p.opponent ? ` ${p.isHome ? "vs" : "@"} ${p.opponent}` : ""}
                           </>
                         )}
-                      </span>
+                      </div>
                     </button>
                   ))}
                   {pickerPool.length === 0 && <p style={{ fontSize: 13, color: "var(--text-accent)" }}>No matches.</p>}
