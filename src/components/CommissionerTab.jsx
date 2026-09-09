@@ -8,6 +8,8 @@ import {
   arrayRemove,
   collection,
   getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
@@ -103,8 +105,33 @@ export function CommissionerTab({ user }) {
     await loadEverything();
   }
 
+  // Before overriding, cross-check whether this player has already been
+  // used by this team in a DIFFERENT week — the same check RosterBuilder's
+  // normal picker already applies for regular lineup edits. This doesn't
+  // block the override (there may be legitimate reasons to do it anyway),
+  // it just makes sure it's never silent if it happens to break the
+  // one-and-done rule.
+  async function findPriorUsage(teamId, playerId, excludeWeek) {
+    const q = query(collection(db, "lineups"), where("teamId", "==", teamId));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (data.week === excludeWeek) continue;
+      const usedHere = Object.values(data.slots || {}).includes(playerId);
+      if (usedHere) return data.week;
+    }
+    return null;
+  }
+
   async function submitLineupOverride() {
     if (!overrideTeamId || !overridePlayerId) return;
+    const priorWeek = await findPriorUsage(overrideTeamId, overridePlayerId, overrideWeek);
+    if (priorWeek !== null) {
+      const confirmed = window.confirm(
+        `This player was already used by this team in Week ${priorWeek}. Continue with the override anyway?`
+      );
+      if (!confirmed) return;
+    }
     const lineupId = `${overrideTeamId}_${overrideWeek}`;
     const existing = await getDoc(doc(db, "lineups", lineupId));
     const currentSlots = existing.exists() ? existing.data().slots || {} : {};

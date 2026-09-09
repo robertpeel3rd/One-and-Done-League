@@ -74,15 +74,19 @@ function calcFantasyPoints(stats) {
   pts += (Number(stats.rush_2pt) || 0) * 2;
   pts += (Number(stats.rec_2pt) || 0) * 2;
 
+  // Confirmed against real 2025 data (Sleeper player id 12961, week 6):
+  // fgm_50_59 and fgm_50p are NOT separate additive categories — fgm_50p is
+  // the umbrella "50+ yards" bucket, and fgm_50_59 is a narrower breakdown
+  // WITHIN that same bucket describing the same kick. Summing both double-
+  // counts every 50-59 yard field goal. Use fgm_50p alone.
   const fgm40_49 = Number(stats.fgm_40_49) || 0;
-  const fgm50_59 = Number(stats.fgm_50_59) || 0;
   const fgm50p = Number(stats.fgm_50p) || 0;
   const fgmTotal = Number(stats.fgm) || 0;
-  const fgm0_39 = Math.max(0, fgmTotal - fgm40_49 - fgm50_59 - fgm50p);
+  const fgm0_39 = Math.max(0, fgmTotal - fgm40_49 - fgm50p);
 
   pts += fgm0_39 * 3;
   pts += fgm40_49 * 4;
-  pts += (fgm50_59 + fgm50p) * 5;
+  pts += fgm50p * 5;
   pts += (Number(stats.xpm) || 0) * 1;
   pts -= (Number(stats.fgmiss) || 0) * 1;
   pts -= (Number(stats.xpmiss) || 0) * 1;

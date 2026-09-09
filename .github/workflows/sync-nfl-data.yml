@@ -4,13 +4,21 @@ on:
   schedule:
     # Nightly roster/schedule sync — 3am ET (7am UTC)
     - cron: "0 7 * * *"
-    # Live scoring poll every 5 minutes, Sun 1pm-midnight ET.
+    # Live scoring poll every 5 minutes, Sat AND Sun 1pm-midnight ET.
     # Widened by an extra hour on the trailing edge (0-5 instead of 0-4)
     # so this safely covers midnight ET whether ET is currently EDT
     # (UTC-4, roughly Mar-Nov) or EST (UTC-5, roughly Nov-Mar) — under
     # EDT the extra hour is just a harmless extra poll past midnight;
     # under EST it's the difference between actually covering the real
     # end of the game and cutting off an hour early.
+    #
+    # Saturday games (holiday slates, Weeks 15-18 flexes, occasional
+    # international windows) previously had NO live-scoring coverage at
+    # all — only the mid-week projections cron touched Saturday, which
+    # never computes real points. Added below, mirroring the Sunday
+    # pattern exactly.
+    - cron: "*/5 17-23 * * 6"
+    - cron: "*/5 0-5 * * 0"
     - cron: "*/5 17-23 * * 0"
     - cron: "*/5 0-5 * * 1"
     # Thursday and Monday night windows, 8pm-midnight ET — same EDT/EST

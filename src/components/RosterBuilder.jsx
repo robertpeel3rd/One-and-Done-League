@@ -406,6 +406,7 @@ export function RosterBuilder({ team }) {
     const pos = SLOTS[pickerSlot];
     const term = searchTerm.trim().toLowerCase();
     const filtered = players
+      .filter((p) => p.active !== false)
       .filter((p) => (pos === "FLEX" ? FLEX_ELIGIBLE.includes(p.pos) : p.pos === pos))
       .filter((p) => !term || (p.name || "").toLowerCase().includes(term))
       .map((p) => {

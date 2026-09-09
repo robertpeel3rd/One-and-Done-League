@@ -95,6 +95,7 @@ async function main() {
         name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim(),
         pos: p.position === "DEF" ? "DST" : p.position,
         team: p.team,
+        active: true,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       // Only touch kickoff/opponent/isHome when the ESPN fetch actually
@@ -113,16 +114,27 @@ async function main() {
     console.log(`  wrote ${Math.min(i + batchSize, activePlayers.length)}/${activePlayers.length}`);
   }
 
-  console.log("Checking for stale player docs to remove...");
+  // Soft-delete rather than hard-delete: a player who drops off Sleeper's
+  // active list (released, retired, long-term IR) gets marked active:false
+  // instead of having their doc removed entirely. A hard delete would
+  // break historical box-score display (WeeklyScoring/Standings showing
+  // "—" instead of the player's name for a slot they legitimately filled
+  // in an earlier week) and silently drop them from UsedPlayers' list —
+  // even though the actual point totals live independently in liveScores
+  // and are unaffected either way. RosterBuilder's picker filters out
+  // active:false players so they still can't be newly started.
+  console.log("Checking for stale (no longer active) players to mark inactive...");
   const existingSnap = await db.collection("players").get();
-  const staleIds = existingSnap.docs.map((d) => d.id).filter((id) => !activeIds.has(id));
+  const staleIds = existingSnap.docs
+    .filter((d) => !activeIds.has(d.id) && d.data().active !== false)
+    .map((d) => d.id);
   if (staleIds.length > 0) {
-    console.log(`Removing ${staleIds.length} stale players...`);
+    console.log(`Marking ${staleIds.length} players inactive...`);
     for (let i = 0; i < staleIds.length; i += batchSize) {
       const batch = db.batch();
       const chunk = staleIds.slice(i, i + batchSize);
       for (const id of chunk) {
-        batch.delete(db.collection("players").doc(id));
+        batch.set(db.collection("players").doc(id), { active: false }, { merge: true });
       }
       await batch.commit();
     }
