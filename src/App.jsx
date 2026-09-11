@@ -12,7 +12,6 @@ import { CommissionerTab } from "./components/CommissionerTab";
 import { About } from "./components/About";
 import { BottomNav } from "./components/BottomNav";
 import { MoreMenu } from "./components/MoreMenu";
-import { ChatFAB } from "./components/ChatFAB";
 import { Logo } from "./components/Logo";
 import { signInWithGoogle } from "./lib/firebase";
 
@@ -66,7 +65,7 @@ function App() {
           maxWidth: 480,
           margin: "0 auto",
           padding: "1rem",
-          paddingBottom: "calc(1rem + 64px + 100px + env(safe-area-inset-bottom))",
+          paddingBottom: "calc(1rem + 64px + env(safe-area-inset-bottom))",
           width: "100%",
           flex: 1,
         }}
@@ -104,8 +103,6 @@ function App() {
       {user && team && (
         <BottomNav tabs={MAIN_TABS} activeTab={displayTab} onSelect={handleNavSelect} />
       )}
-
-      {user && team && <ChatFAB user={user} />}
     </div>
   );
 }
