@@ -60,7 +60,7 @@ export function About({ user }) {
               <td style={{ padding: 8 }}>Yard</td><td style={{ padding: 8, textAlign: "right" }}>0.04</td>
             </tr>
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Touchdown</td><td style={{ padding: 8, textAlign: "right" }}>4</td></tr>
-            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Interception</td><td style={{ padding: 8, textAlign: "right" }}>-2</td></tr>
+            <tr style={{ borderBottom: "0.5px solid var(--border)" }}><td style={{ padding: 8 }}>Interception</td><td style={{ padding: 8, textAlign: "right" }}>-1</td></tr>
 
             <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
               <td rowSpan={2} style={{ padding: 8, verticalAlign: "middle", fontWeight: 500 }}>Rushing</td>

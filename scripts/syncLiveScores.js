@@ -59,7 +59,7 @@ function calcFantasyPoints(stats) {
 
   pts += (Number(stats.pass_yd) || 0) * 0.04;
   pts += (Number(stats.pass_td) || 0) * 4;
-  pts -= (Number(stats.pass_int) || 0) * 2;
+  pts -= (Number(stats.pass_int) || 0) * 1;
 
   pts += (Number(stats.rush_yd) || 0) * 0.1;
   pts += (Number(stats.rush_td) || 0) * 6;
