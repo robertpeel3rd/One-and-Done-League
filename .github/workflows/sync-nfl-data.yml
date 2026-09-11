@@ -55,7 +55,7 @@ jobs:
         run: node scripts/syncRoster.js
 
       - name: Sync live scores (game windows)
-        if: (github.event.schedule != '0 7 * * *' && github.event.schedule != null) || github.event.inputs.run_live_scores == 'true'
+        if: (!cancelled()) && ((github.event.schedule != '0 7 * * *' && github.event.schedule != null) || github.event.inputs.run_live_scores == 'true')
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node scripts/syncLiveScores.js
