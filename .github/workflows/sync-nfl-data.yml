@@ -35,6 +35,17 @@ on:
         type: boolean
         default: false
 
+# Only ever allow ONE run of this workflow at a time. Without this, an
+# external trigger (cron-job.org) firing every 5 minutes while a previous
+# run is still in progress (e.g. because a Firestore write is unusually
+# slow that day) causes runs to pile up on top of each other -- confirmed
+# to happen live on Sept 14, 2026, where 4+ runs stacked simultaneously,
+# each hanging for 20+ minutes. cancel-in-progress ensures a new trigger
+# kills any stale/hung run rather than adding to the pile.
+concurrency:
+  group: sync-nfl-data
+  cancel-in-progress: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
