@@ -226,8 +226,17 @@ async function main() {
         docData.points = points;
         docData.week = week;
         docData.season = season;
-        docData[`weeklyPoints.${week}`] = points;
-        docData[`statLine.${week}`] = buildStatLine(stats);
+        // Use real nested object literals here, NOT dotted-string keys
+        // (e.g. NOT docData[`weeklyPoints.${week}`] = points). Confirmed via
+        // real Firestore data (Sept 2026): writing two different top-level
+        // dotted-path keys (weeklyPoints.${week} AND statLine.${week}) in
+        // the SAME set({merge:true}) call caused Firestore to merge them
+        // incorrectly -- weeklyPoints and other fields ended up nested
+        // INSIDE a literal field named "statLine.1" instead of staying
+        // separate. A plain nested object with merge:true correctly
+        // deep-merges just the new week's key without this collision.
+        docData.weeklyPoints = { [week]: points };
+        docData.statLine = { [week]: buildStatLine(stats) };
       }
 
       if (projectedPoints !== null) {
