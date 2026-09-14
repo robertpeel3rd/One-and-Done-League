@@ -193,17 +193,16 @@ export function WeeklyScoring({ myTeamId }) {
                           fontStyle: isFinished ? "italic" : "normal",
                         }}
                       >
-                        <span>
-                          <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-primary)" }}>{s.pos}</span>{" "}
-                          {s.player ? `${s.player.name} (${s.player.team})` : "—"}
-                        </span>
                         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-primary)" }}>{s.pos}</span>
+                          {s.player ? `${s.player.name} (${s.player.team})` : "—"}
                           {isLive && (
                             <span
                               style={{
                                 fontSize: 10,
-                                border: "1px solid var(--border-strong)",
-                                color: "var(--text-secondary)",
+                                border: "1px solid var(--text-success)",
+                                color: "var(--text-success)",
+                                background: "var(--bg-success)",
                                 borderRadius: 8,
                                 padding: "1px 7px",
                               }}
@@ -211,8 +210,8 @@ export function WeeklyScoring({ myTeamId }) {
                               Live
                             </span>
                           )}
-                          {s.pts}
                         </span>
+                        <span>{s.pts}</span>
                       </div>
                     );
                   })}
