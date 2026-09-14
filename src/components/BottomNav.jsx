@@ -1,6 +1,7 @@
 const ICONS = {
   Standings: "ti-chart-bar",
   "Weekly Scoring": "ti-calendar",
+  "Detailed Scoring": "ti-list-details",
   Teams: "ti-users",
   "My Lineup": "ti-list",
   "Used Players": "ti-history",

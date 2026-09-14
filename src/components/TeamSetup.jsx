@@ -52,6 +52,7 @@ export function TeamSetup({ user, onTeamReady }) {
       setTeam(newTeam);
       onTeamReady?.(newTeam);
     } catch (err) {
+      console.error("Team creation failed:", err);
       setError("Couldn't create the team. Try again.");
     } finally {
       setSaving(false);

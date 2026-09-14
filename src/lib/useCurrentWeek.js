@@ -13,6 +13,7 @@ export function useCurrentWeek() {
         setWeek(state.week || 1);
         setSeason(state.season);
       } catch (err) {
+        console.error("Failed to fetch current NFL week, falling back to week 1:", err);
         setWeek(1);
       } finally {
         setLoading(false);

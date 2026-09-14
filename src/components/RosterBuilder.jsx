@@ -13,7 +13,7 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
 const SAVE_DEBOUNCE_MS = 1000;
-const SAVED_DISPLAY_MS = 2500;
+const SAVED_DISPLAY_MS = 3000;
 
 const SORT_OPTIONS = [
   { key: "az", label: "A-Z" },
@@ -340,6 +340,7 @@ export function RosterBuilder({ team }) {
         }, SAVED_DISPLAY_MS);
       }
     } catch (err) {
+      console.error("Lineup save failed:", err);
       if (saveTokenRef.current === myToken) {
         setSaveStatus("error");
       }

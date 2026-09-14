@@ -171,25 +171,51 @@ export function WeeklyScoring({ myTeamId }) {
                 </button>
 
                 {isExpanded &&
-                  slotEntries.map((s, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: "0.4rem 0.9rem",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: 13,
-                        borderTop: "0.5px solid var(--border)",
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      <span>
-                        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.pos}</span>{" "}
-                        {s.player ? `${s.player.name} (${s.player.team})` : "—"}
-                      </span>
-                      <span>{s.pts}</span>
-                    </div>
-                  ))}
+                  slotEntries.map((s, idx) => {
+                    // gameState/gameCompleted on the player doc only ever
+                    // reflect the CURRENT week's schedule (syncRoster only
+                    // fetches this week's games) — so only apply the
+                    // Live/finished treatment when viewing the live current
+                    // week, not a past week's box score.
+                    const isCurrentWeekView = selectedWeek === currentWeek;
+                    const isLive = isCurrentWeekView && s.player?.gameState === "in";
+                    const isFinished = isCurrentWeekView && s.player?.gameCompleted === true;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: "0.4rem 0.9rem",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: 13,
+                          borderTop: "0.5px solid var(--border)",
+                          color: isFinished ? "var(--text-muted)" : "var(--text-secondary)",
+                          fontStyle: isFinished ? "italic" : "normal",
+                        }}
+                      >
+                        <span>
+                          <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-primary)" }}>{s.pos}</span>{" "}
+                          {s.player ? `${s.player.name} (${s.player.team})` : "—"}
+                        </span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {isLive && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                border: "1px solid var(--border-strong)",
+                                color: "var(--text-secondary)",
+                                borderRadius: 8,
+                                padding: "1px 7px",
+                              }}
+                            >
+                              Live
+                            </span>
+                          )}
+                          {s.pts}
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           );

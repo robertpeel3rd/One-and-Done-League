@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
-const POSITION_ORDER = ["QB", "RB", "WR", "TE", "FLEX", "K", "DST"];
+const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DST"];
 
 function lastName(fullName = "") {
   const parts = fullName.trim().split(" ");

@@ -6,12 +6,33 @@ function initFirebase() {
   return admin.firestore();
 }
 
+// Wraps a promise with a hard timeout so a hung Firestore call fails fast
+// (e.g. 45s) instead of hanging for a very long default network/client
+// timeout (observed to take ~20+ minutes during a real Firestore latency
+// incident on Sept 14, 2026 — see future-improvements.md for the full
+// writeup). A fast, clear failure lets the next scheduled/triggered run
+// recover sooner, rather than one bad window silently blocking sync for
+// a long time.
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timed out after ${ms}ms: ${label}`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+const WRITE_TIMEOUT_MS = 45000;
+
 const ESPN_TO_SLEEPER_TEAM = {
   WSH: "WAS",
 };
 
-// Returns a map of team abbreviation -> { kickoffTime, opponent, isHome }
-// for every team playing this week, derived from ESPN's scoreboard data.
+// Returns a map of team abbreviation -> { kickoffTime, opponent, isHome,
+// gameState, gameCompleted } for every team playing this week, derived
+// from ESPN's scoreboard data. gameState/gameCompleted come from ESPN's
+// event.status.type field — confirmed against real live data (Sept 2026):
+// a live game shows { state: "in", completed: false }, a finished game
+// shows { state: "post", completed: true }.
 async function fetchCurrentWeekGameInfo() {
   console.log("Fetching current NFL week...");
   const stateRes = await fetch("https://api.sleeper.app/v1/state/nfl");
@@ -23,7 +44,7 @@ async function fetchCurrentWeekGameInfo() {
     `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}`
   );
   if (!scoreboardRes.ok) {
-    console.warn(`ESPN schedule request failed: ${scoreboardRes.status} — leaving existing kickoff/opponent/isHome data untouched this run instead of overwriting it with nulls.`);
+    console.warn(`ESPN schedule request failed: ${scoreboardRes.status} — leaving existing kickoff/opponent/isHome/gameState data untouched this run instead of overwriting it with nulls.`);
     return null; // null = "the fetch itself failed", distinct from {} = "fetch succeeded, just no data for some team"
   }
   const data = await scoreboardRes.json();
@@ -39,15 +60,22 @@ async function fetchCurrentWeekGameInfo() {
     if (!abbrA || !abbrB) continue;
     abbrA = ESPN_TO_SLEEPER_TEAM[abbrA] || abbrA;
     abbrB = ESPN_TO_SLEEPER_TEAM[abbrB] || abbrB;
+    const statusType = event.status?.type || {};
+    const gameState = statusType.state ?? null;
+    const gameCompleted = typeof statusType.completed === "boolean" ? statusType.completed : null;
     gameInfoByTeam[abbrA] = {
       kickoffTime: kickoffISO,
       opponent: abbrB,
       isHome: a.homeAway === "home",
+      gameState,
+      gameCompleted,
     };
     gameInfoByTeam[abbrB] = {
       kickoffTime: kickoffISO,
       opponent: abbrA,
       isHome: b.homeAway === "home",
+      gameState,
+      gameCompleted,
     };
   }
   return gameInfoByTeam;
@@ -98,19 +126,21 @@ async function main() {
         active: true,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
-      // Only touch kickoff/opponent/isHome when the ESPN fetch actually
-      // succeeded this run — if it failed, leave whatever was already
-      // there from a previous successful run alone, rather than
+      // Only touch kickoff/opponent/isHome/gameState when the ESPN fetch
+      // actually succeeded this run — if it failed, leave whatever was
+      // already there from a previous successful run alone, rather than
       // overwriting good data with nulls.
       if (!scheduleFetchFailed) {
         const info = gameInfoByTeam[p.team];
         docData.kickoffTime = info?.kickoffTime || null;
         docData.opponent = info?.opponent || null;
         docData.isHome = info?.isHome ?? null;
+        docData.gameState = info?.gameState || null;
+        docData.gameCompleted = info?.gameCompleted ?? null;
       }
       batch.set(ref, docData, { merge: true });
     }
-    await batch.commit();
+    await withTimeout(batch.commit(), WRITE_TIMEOUT_MS, `roster batch commit (${i}-${i + chunk.length})`);
     console.log(`  wrote ${Math.min(i + batchSize, activePlayers.length)}/${activePlayers.length}`);
   }
 
@@ -124,7 +154,11 @@ async function main() {
   // and are unaffected either way. RosterBuilder's picker filters out
   // active:false players so they still can't be newly started.
   console.log("Checking for stale (no longer active) players to mark inactive...");
-  const existingSnap = await db.collection("players").get();
+  const existingSnap = await withTimeout(
+    db.collection("players").get(),
+    WRITE_TIMEOUT_MS,
+    "players collection get (stale check)"
+  );
   const staleIds = existingSnap.docs
     .filter((d) => !activeIds.has(d.id) && d.data().active !== false)
     .map((d) => d.id);
@@ -136,7 +170,7 @@ async function main() {
       for (const id of chunk) {
         batch.set(db.collection("players").doc(id), { active: false }, { merge: true });
       }
-      await batch.commit();
+      await withTimeout(batch.commit(), WRITE_TIMEOUT_MS, `stale-mark batch commit (${i}-${i + chunk.length})`);
     }
   }
 

@@ -19,6 +19,11 @@
 // this avoids overwriting prior weeks' totals, since each player only has
 // a single liveScores doc that's updated in place every run.
 //
+// Also stores the raw per-week stat line (`stats`) alongside the computed
+// points, so the Detailed Scoring tab can show exactly which stats
+// contributed to a player's score (e.g. "268 pass yd, 2 pass TD") without
+// needing to re-derive them from the points total.
+//
 // Run frequently during game windows.
 //
 // No API key needed.
@@ -35,6 +40,23 @@ function initFirebase() {
   });
   return admin.firestore();
 }
+
+// Wraps a promise with a hard timeout so a hung Firestore call fails fast
+// (e.g. 45s) instead of hanging for a very long default network/client
+// timeout (observed to take ~20+ minutes during a real Firestore latency
+// incident on Sept 14, 2026 — see future-improvements.md for the full
+// writeup). A fast, clear failure lets the next scheduled/triggered run
+// recover sooner, rather than one bad window silently blocking sync for
+// a long time.
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timed out after ${ms}ms: ${label}`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+const WRITE_TIMEOUT_MS = 45000;
 
 async function getCurrentWeek() {
   const res = await fetch("https://api.sleeper.app/v1/state/nfl");
@@ -107,6 +129,30 @@ function calcFantasyPoints(stats) {
   return Math.round(pts * 100) / 100;
 }
 
+// Curated subset of raw stat fields worth storing for the Detailed Scoring
+// tab's stat-breakdown line — the same categories calcFantasyPoints()
+// actually uses, so the displayed line always matches what was scored.
+// Only nonzero/defined fields are kept, to keep each doc small.
+const STAT_LINE_FIELDS = [
+  "pass_yd", "pass_td", "pass_int",
+  "rush_yd", "rush_td",
+  "rec", "rec_yd", "rec_td",
+  "fum_lost",
+  "fgm_40_49", "fgm_50p", "fgm", "fgmiss", "xpm", "xpmiss",
+  "sack", "int", "fum_rec", "def_td", "safe", "blk_kick", "pts_allow",
+];
+
+function buildStatLine(stats) {
+  const line = {};
+  for (const field of STAT_LINE_FIELDS) {
+    const value = Number(stats[field]);
+    if (!Number.isNaN(value) && value !== 0) {
+      line[field] = value;
+    }
+  }
+  return line;
+}
+
 async function main() {
   const db = initFirebase();
 
@@ -170,16 +216,18 @@ async function main() {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
-      // Only touch points/weeklyPoints when real stats are actually present
-      // this run. A player missing from THIS run's stats (but still present
-      // in projections, which are usually available all week) must NOT have
-      // their real, already-correct score zeroed out — just leave it alone.
+      // Only touch points/weeklyPoints/statLine when real stats are
+      // actually present this run. A player missing from THIS run's stats
+      // (but still present in projections, which are usually available all
+      // week) must NOT have their real, already-correct score zeroed out —
+      // just leave it alone.
       if (stats) {
         const points = calcFantasyPoints(stats);
         docData.points = points;
         docData.week = week;
         docData.season = season;
         docData[`weeklyPoints.${week}`] = points;
+        docData[`statLine.${week}`] = buildStatLine(stats);
       }
 
       if (projectedPoints !== null) {
@@ -188,7 +236,7 @@ async function main() {
 
       batch.set(ref, docData, { merge: true });
     }
-    await batch.commit();
+    await withTimeout(batch.commit(), WRITE_TIMEOUT_MS, `live scores batch commit (${i}-${i + chunk.length})`);
   }
 
   console.log("Done.");
