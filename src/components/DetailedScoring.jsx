@@ -32,8 +32,8 @@ const STAT_LABELS = [
   ["blk_kick", "blocked kick"],
 ];
 
-function formatStatLine(statLine) {
-  if (!statLine) return null;
+function getStatLineParts(statLine) {
+  if (!statLine) return [];
   const parts = [];
   for (const [field, label] of STAT_LABELS) {
     if (field in statLine) {
@@ -43,8 +43,7 @@ function formatStatLine(statLine) {
   if ("pts_allow" in statLine) {
     parts.push(`${statLine.pts_allow} pts allowed`);
   }
-  if (parts.length === 0) return null;
-  return parts.join(" · ");
+  return parts;
 }
 
 export function DetailedScoring({ myTeamId }) {
@@ -199,44 +198,74 @@ export function DetailedScoring({ myTeamId }) {
                 {slotEntries.map((s, idx) => {
                   const isLive = s.player?.gameState === "in";
                   const isFinished = s.player?.gameCompleted === true;
-                  const statLineText = formatStatLine(s.statLine);
+                  const statParts = getStatLineParts(s.statLine);
                   return (
                     <div
                       key={idx}
                       style={{
-                        padding: "0.4rem 0.9rem",
+                        padding: isLive ? "6px 12px 6px 9px" : "6px 12px",
                         borderTop: "0.5px solid var(--border)",
-                        fontSize: 13,
-                        color: isFinished ? "var(--text-muted)" : "var(--text-secondary)",
-                        fontStyle: isFinished ? "italic" : "normal",
+                        borderLeft: isLive ? "3px solid var(--text-success)" : "none",
+                        background: isLive ? "var(--bg-success)" : "transparent",
+                        display: "flex",
+                        alignItems: "flex-start",
                       }}
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-primary)" }}>{s.pos}</span>
-                          {s.player ? `${s.player.name} (${s.player.team})` : "empty"}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: isFinished ? "var(--text-muted)" : "var(--text-primary)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <span>
+                            <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-secondary)" }}>{s.pos}</span>{" "}
+                            {s.player ? `${s.player.name} (${s.player.team})` : "empty"}
+                          </span>
                           {isLive && (
                             <span
                               style={{
-                                fontSize: 10,
+                                fontSize: 9,
+                                fontWeight: 600,
                                 border: "1px solid var(--text-success)",
                                 color: "var(--text-success)",
-                                background: "var(--bg-success)",
-                                borderRadius: 8,
-                                padding: "1px 7px",
+                                background: "var(--surface-2)",
+                                borderRadius: 7,
+                                padding: "1px 6px",
                               }}
                             >
-                              Live
+                              LIVE
                             </span>
                           )}
-                        </span>
-                        <span>{s.pts}</span>
-                      </div>
-                      {statLineText && (
-                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, textAlign: "left" }}>
-                          {statLineText}
                         </div>
-                      )}
+                        {statParts.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 3 }}>
+                            {statParts.map((part, i) => (
+                              <span
+                                key={i}
+                                style={{
+                                  fontSize: 10,
+                                  color: isFinished ? "var(--text-muted)" : isLive ? "var(--text-success)" : "var(--text-muted)",
+                                  background: isLive ? "var(--surface-2)" : "var(--surface-1)",
+                                  border: isLive ? "0.5px solid var(--text-success)" : "none",
+                                  borderRadius: 6,
+                                  padding: "1px 6px",
+                                }}
+                              >
+                                {part}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          width: 40,
+                          flexShrink: 0,
+                          textAlign: "right",
+                          fontSize: 13,
+                          fontWeight: isLive ? 600 : 400,
+                          color: isFinished ? "var(--text-muted)" : isLive ? "var(--text-success)" : "var(--text-primary)",
+                          paddingTop: 1,
+                        }}
+                      >
+                        {s.pts}
+                      </div>
                     </div>
                   );
                 })}
