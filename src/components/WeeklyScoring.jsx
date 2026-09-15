@@ -191,45 +191,34 @@ export function WeeklyScoring({ myTeamId }) {
                       <div
                         key={idx}
                         style={{
-                          padding: isLive ? "6px 12px 6px 9px" : "6px 12px",
+                          padding: "0.4rem 0.9rem",
                           display: "flex",
-                          alignItems: "center",
+                          justifyContent: "space-between",
                           fontSize: 13,
                           borderTop: "0.5px solid var(--border)",
-                          borderLeft: isLive ? "3px solid var(--text-success)" : "none",
-                          background: isLive ? "var(--bg-success)" : "transparent",
+                          color: isFinished ? "var(--text-muted)" : "var(--text-secondary)",
+                          fontStyle: isFinished ? "italic" : "normal",
                         }}
                       >
-                        <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", color: isFinished ? "var(--text-muted)" : "var(--text-primary)" }}>
-                          <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-secondary)" }}>{s.pos}</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-primary)" }}>{s.pos}</span>
                           {s.player ? `${s.player.name} (${s.player.team})` : "—"}
                           {isLive && (
                             <span
                               style={{
-                                fontSize: 9,
-                                fontWeight: 600,
+                                fontSize: 10,
                                 border: "1px solid var(--text-success)",
                                 color: "var(--text-success)",
-                                background: "var(--surface-2)",
-                                borderRadius: 7,
-                                padding: "1px 6px",
+                                background: "var(--bg-success)",
+                                borderRadius: 8,
+                                padding: "1px 7px",
                               }}
                             >
-                              LIVE
+                              Live
                             </span>
                           )}
                         </span>
-                        <span
-                          style={{
-                            width: 40,
-                            flexShrink: 0,
-                            textAlign: "right",
-                            fontWeight: isLive ? 600 : 400,
-                            color: isFinished ? "var(--text-muted)" : isLive ? "var(--text-success)" : "var(--text-primary)",
-                          }}
-                        >
-                          {s.pts}
-                        </span>
+                        <span>{s.pts}</span>
                       </div>
                     );
                   })}
