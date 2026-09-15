@@ -99,7 +99,12 @@ export function DetailedScoring({ myTeamId }) {
     if (doc.weeklyPoints && typeof doc.weeklyPoints[currentWeek] === "number") {
       return doc.weeklyPoints[currentWeek];
     }
-    return doc.points || 0;
+    // Only trust the single .points field if it was actually computed FOR
+    // currentWeek (doc.week === currentWeek), not just assumed to be --
+    // same fix as WeeklyScoring.jsx/Standings.jsx. See those files for the
+    // full writeup of the confirmed bug this prevents.
+    if (doc.week === currentWeek) return doc.points || 0;
+    return 0;
   }
 
   function statLineForCurrentWeek(playerId) {

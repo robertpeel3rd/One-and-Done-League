@@ -68,7 +68,14 @@ export function WeeklyScoring({ myTeamId }) {
     if (doc.weeklyPoints && typeof doc.weeklyPoints[week] === "number") {
       return doc.weeklyPoints[week];
     }
-    if (week === currentWeek) return doc.points || 0;
+    // Only trust the single .points field if it was actually computed FOR
+    // this specific week (doc.week === week) -- not just because "week"
+    // happens to equal the app's notion of currentWeek. Confirmed bug
+    // (Sept 2026): before any real stats exist for a new week, .points
+    // still holds whatever week it was last genuinely synced for, so
+    // checking "week === currentWeek" alone served stale prior-week
+    // scores mislabeled as the new week's numbers.
+    if (doc.week === week) return doc.points || 0;
     return 0;
   }
 
