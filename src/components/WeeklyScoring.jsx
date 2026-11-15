@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
+import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
+import { LivePill } from "./Pills";
 
 const REFRESH_INTERVAL_MS = 30000;
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
 export function WeeklyScoring({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
+  const ownerNames = useOwnerFirstNames();
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -171,6 +174,19 @@ export function WeeklyScoring({ myTeamId }) {
                       style={{ fontSize: 13, marginLeft: 6, verticalAlign: -1 }}
                       aria-hidden="true"
                     />
+                    {ownerNames[team.ownerUid] && (
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: 9,
+                          lineHeight: 1.1,
+                          opacity: 0.75,
+                          color: isMine ? "var(--text-accent)" : "var(--text-secondary)",
+                        }}
+                      >
+                        {ownerNames[team.ownerUid]}
+                      </span>
+                    )}
                   </span>
                   <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 700, marginLeft: 8 }}>
                     {total}
@@ -203,20 +219,7 @@ export function WeeklyScoring({ myTeamId }) {
                         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-primary)" }}>{s.pos}</span>
                           {s.player ? `${s.player.name} (${s.player.team})` : "—"}
-                          {isLive && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                border: "1px solid var(--text-success)",
-                                color: "var(--text-success)",
-                                background: "var(--bg-success)",
-                                borderRadius: 8,
-                                padding: "1px 7px",
-                              }}
-                            >
-                              Live
-                            </span>
-                          )}
+                          {isLive && <LivePill />}
                         </span>
                         <span>{s.pts}</span>
                       </div>

@@ -9,6 +9,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
+import { InjuryDot, InjuryText } from "./Injury";
+import { getInjuryInfo, isRuledOut } from "../lib/injury";
+import { UsedPill } from "./Pills";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
@@ -279,13 +282,16 @@ export function RosterBuilder({ team }) {
 
   const isReadOnly = selectedWeek !== currentWeek;
 
-  const usedPlayerIds = useMemo(() => {
-    const used = new Set();
+  // Map of playerId -> the week this team used that player (powers the
+  // "USED WK X" pill in the picker). Players in other slots of the week
+  // being edited map to selectedWeek.
+  const usedWeekByPlayer = useMemo(() => {
+    const used = new Map();
     allLineups.forEach((l) => {
       if (l.week === selectedWeek) return;
-      Object.values(l.slots || {}).forEach((pid) => pid && used.add(pid));
+      Object.values(l.slots || {}).forEach((pid) => pid && used.set(pid, l.week));
     });
-    Object.values(localSlots).forEach((pid) => pid && used.add(pid));
+    Object.values(localSlots).forEach((pid) => pid && used.set(pid, selectedWeek));
     return used;
   }, [allLineups, localSlots, selectedWeek]);
 
@@ -414,15 +420,25 @@ export function RosterBuilder({ team }) {
         const usedElsewhereThisWeek = Object.entries(localSlots).some(
           ([idx, pid]) => pid === p.id && Number(idx) !== pickerSlot
         );
-        const usedInPastWeek = usedPlayerIds.has(p.id) && localSlots[pickerSlot] !== p.id;
+        const usedInPastWeek = usedWeekByPlayer.has(p.id) && localSlots[pickerSlot] !== p.id;
         const gameStarted = isGameStarted(p.kickoffTime);
         const locked = usedElsewhereThisWeek || usedInPastWeek || gameStarted;
-        return { ...p, locked, gameStarted };
+        // Only "already used" gets a pill; a game-started lock is
+        // deliberately left unlabeled.
+        const usedWeek = usedElsewhereThisWeek || usedInPastWeek ? usedWeekByPlayer.get(p.id) : null;
+        return { ...p, locked, gameStarted, usedWeek };
       });
     return sortPickerPool(filtered, sortMode);
-  }, [pickerSlot, players, searchTerm, localSlots, usedPlayerIds, sortMode]);
+  }, [pickerSlot, players, searchTerm, localSlots, usedWeekByPlayer, sortMode]);
 
   if (weekLoading || loading || selectedWeek === null) return <p>Loading your lineup...</p>;
+
+  // Players in this lineup who are Out/IR and whose game hasn't started yet
+  // (once it starts the pick is locked, so the warning disappears).
+  const outWarnings = Object.values(localSlots)
+    .map((pid) => players.find((p) => p.id === pid))
+    .filter((p) => p && isRuledOut(p.injuryStatus) && !isGameStarted(p.kickoffTime))
+    .map((p) => ({ id: p.id, name: p.name }));
 
   const weekOptions = Array.from({ length: currentWeek }, (_, i) => i + 1);
   const pickerHasPlayer = pickerSlot !== null && Boolean(localSlots[pickerSlot]);
@@ -430,6 +446,28 @@ export function RosterBuilder({ team }) {
   return (
     <div style={{ maxWidth: 480 }}>
       {!isReadOnly && <SaveStatusBar status={saveStatus} />}
+
+      {!isReadOnly &&
+        outWarnings.map((w) => (
+          <div
+            key={w.id}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              padding: "10px 12px",
+              marginBottom: 8,
+              borderRadius: "var(--radius)",
+              background: "var(--bg-danger)",
+              color: "var(--text-danger)",
+              fontSize: 13,
+              lineHeight: 1.4,
+            }}
+          >
+            <i className="ti ti-alert-triangle" style={{ fontSize: 18, flexShrink: 0 }} aria-hidden="true" />
+            <div>{w.name} is ruled out this week. Swap him before kickoff.</div>
+          </div>
+        ))}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
@@ -505,7 +543,6 @@ export function RosterBuilder({ team }) {
                       disabled={p.locked}
                       style={{
                         textAlign: "left",
-                        opacity: p.locked ? 0.4 : 1,
                         background: "var(--surface-2)",
                         border: "none",
                         borderRadius: "var(--radius)",
@@ -514,15 +551,28 @@ export function RosterBuilder({ team }) {
                         width: "100%",
                       }}
                     >
-                      <div style={{ fontSize: 14 }}>{p.name}</div>
-                      <div style={{ color: "var(--text-accent)", opacity: 0.75, fontSize: 12, marginTop: 1 }}>
-                        {p.pos} · {p.team}
-                        {!p.gameStarted && p.kickoffTime && (
-                          <>
-                            {" "}· {formatKickoffCompact(p.kickoffTime)}
-                            {p.opponent ? ` ${p.isHome ? "vs" : "@"} ${p.opponent}` : ""}
-                          </>
-                        )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0, opacity: p.locked ? 0.4 : 1 }}>
+                          <div style={{ fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                            {p.name}
+                            <InjuryDot info={getInjuryInfo(p.injuryStatus)} />
+                          </div>
+                          <div style={{ color: "var(--text-accent)", opacity: 0.75, fontSize: 12, marginTop: 1 }}>
+                            {p.pos} · {p.team}
+                            {!p.gameStarted && p.kickoffTime && (
+                              <>
+                                {" "}· {formatKickoffCompact(p.kickoffTime)}
+                                {p.opponent ? ` ${p.isHome ? "vs" : "@"} ${p.opponent}` : ""}
+                              </>
+                            )}
+                            {getInjuryInfo(p.injuryStatus) && (
+                              <>
+                                {" "}· <InjuryText info={getInjuryInfo(p.injuryStatus)} />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {p.usedWeek != null && <UsedPill week={p.usedWeek} />}
                       </div>
                     </button>
                   ))}
@@ -596,8 +646,18 @@ export function RosterBuilder({ team }) {
                 <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
                   {player ? (
                     <>
-                      {player.name}{" "}
-                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({player.team})</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span>
+                          {player.name}{" "}
+                          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({player.team})</span>
+                        </span>
+                        <InjuryDot info={getInjuryInfo(player.injuryStatus)} />
+                      </span>
+                      {getInjuryInfo(player.injuryStatus) && (
+                        <span style={{ display: "block", fontSize: 12, marginTop: 1 }}>
+                          <InjuryText info={getInjuryInfo(player.injuryStatus)} />
+                        </span>
+                      )}
                     </>
                   ) : (
                     <span style={{ color: "var(--text-muted)" }}>empty</span>

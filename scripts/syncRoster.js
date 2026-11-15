@@ -124,6 +124,10 @@ async function main() {
         pos: p.position === "DEF" ? "DST" : p.position,
         team: p.team,
         active: true,
+        // Sleeper's injury_status: "Questionable", "Doubtful", "Out", "IR",
+        // "PUP", etc., or null when healthy. Displayed as a dot + status
+        // text in the Picker and My Lineup (see Injury.jsx).
+        injuryStatus: p.injury_status || null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       // Only touch kickoff/opponent/isHome/gameState when the ESPN fetch

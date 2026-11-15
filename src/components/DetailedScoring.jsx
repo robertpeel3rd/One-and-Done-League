@@ -1,23 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
+import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
+import { LivePill } from "./Pills";
 
 const REFRESH_INTERVAL_MS = 30000;
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
 // Human-readable labels for the curated stat fields stored by
-// syncLiveScores.js's buildStatLine(). Order here is also display order.
+// syncLiveScores.js's buildStatLine(). Entries marked `first: true` (touchdowns
+// and turnovers/big plays) are shown before everything else so they are never
+// the ones hidden under the "+N" overflow pill. Otherwise order here is
+// display order.
 const STAT_LABELS = [
   ["pass_yd", "pass yd"],
-  ["pass_td", "pass TD"],
-  ["pass_int", "INT"],
+  ["pass_td", "pass TD", true],
+  ["pass_int", "INT", true],
   ["rush_yd", "rush yd"],
-  ["rush_td", "rush TD"],
+  ["rush_td", "rush TD", true],
   ["rec", "rec"],
   ["rec_yd", "rec yd"],
-  ["rec_td", "rec TD"],
-  ["fum_lost", "fum lost"],
+  ["rec_td", "rec TD", true],
+  ["fum_lost", "fum lost", true],
   ["fgm", "FG made"],
   ["fgm_40_49", "FG 40-49"],
   ["fgm_50p", "FG 50+"],
@@ -25,29 +30,122 @@ const STAT_LABELS = [
   ["xpm", "XP made"],
   ["xpmiss", "XP missed"],
   ["sack", "sacks"],
-  ["int", "INT"],
-  ["fum_rec", "fum rec"],
-  ["def_td", "def TD"],
-  ["safe", "safety"],
-  ["blk_kick", "blocked kick"],
+  ["int", "INT", true],
+  ["fum_rec", "fum rec", true],
+  ["def_td", "def TD", true],
+  ["safe", "safety", true],
+  ["blk_kick", "blocked kick", true],
 ];
 
 function getStatLineParts(statLine) {
   if (!statLine) return [];
-  const parts = [];
-  for (const [field, label] of STAT_LABELS) {
+  const priority = [];
+  const rest = [];
+  for (const [field, label, first] of STAT_LABELS) {
     if (field in statLine) {
-      parts.push(`${statLine[field]} ${label}`);
+      (first ? priority : rest).push(`${statLine[field]} ${label}`);
     }
   }
   if ("pts_allow" in statLine) {
-    parts.push(`${statLine.pts_allow} pts allowed`);
+    rest.push(`${statLine.pts_allow} pts allowed`);
   }
-  return parts;
+  return [...priority, ...rest];
+}
+
+// Renders stat pills on exactly ONE line. Anything that doesn't fit
+// collapses into a "+N" pill. Fit is measured from an invisible copy of
+// all pills, so the visible row never wraps or jumps.
+function StatPills({ parts, pillStyle }) {
+  const containerRef = useRef(null);
+  const measureRef = useRef(null);
+  const [visibleCount, setVisibleCount] = useState(parts.length);
+
+  const partsKey = parts.join("|");
+
+  useLayoutEffect(() => {
+    function recalc() {
+      const container = containerRef.current;
+      const measure = measureRef.current;
+      if (!container || !measure) return;
+      const available = container.clientWidth;
+      const GAP = 3;
+      const MORE_WIDTH = 30;
+      const widths = Array.from(measure.children).map((c) => c.offsetWidth);
+      const total = widths.reduce((sum, w, i) => sum + w + (i > 0 ? GAP : 0), 0);
+      if (total <= available) {
+        setVisibleCount(parts.length);
+        return;
+      }
+      let used = 0;
+      let count = 0;
+      for (let i = 0; i < widths.length; i++) {
+        const next = used + widths[i] + (i > 0 ? GAP : 0);
+        if (next + GAP + MORE_WIDTH > available) break;
+        used = next;
+        count++;
+      }
+      setVisibleCount(Math.max(count, 1));
+    }
+    recalc();
+    let ro;
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      ro = new ResizeObserver(recalc);
+      ro.observe(containerRef.current);
+    }
+    return () => ro && ro.disconnect();
+  }, [partsKey, parts.length]);
+
+  const hidden = parts.length - visibleCount;
+  return (
+    <div style={{ position: "relative", marginTop: 3 }}>
+      <div
+        ref={containerRef}
+        style={{ display: "flex", flexWrap: "nowrap", gap: 3, overflow: "hidden", whiteSpace: "nowrap" }}
+      >
+        {parts.slice(0, visibleCount).map((part, i) => (
+          <span key={i} style={pillStyle}>{part}</span>
+        ))}
+        {hidden > 0 && (
+          <span
+            style={{
+              ...pillStyle,
+              background: "transparent",
+              border: "0.5px solid var(--border-strong)",
+              color: "var(--text-primary)",
+              fontWeight: 500,
+            }}
+          >
+            +{hidden}
+          </span>
+        )}
+      </div>
+      <div
+        ref={measureRef}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          visibility: "hidden",
+          pointerEvents: "none",
+          height: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexWrap: "nowrap",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {parts.map((part, i) => (
+          <span key={i} style={pillStyle}>{part}</span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function DetailedScoring({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
+  const ownerNames = useOwnerFirstNames();
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [lineups, setLineups] = useState([]);
@@ -191,7 +289,23 @@ export function DetailedScoring({ myTeamId }) {
                     fontWeight: 700,
                   }}
                 >
-                  <span>{team.name}</span>
+                  <span>
+                    {team.name}
+                    {ownerNames[team.ownerUid] && (
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: 9,
+                          fontWeight: 400,
+                          lineHeight: 1.1,
+                          opacity: 0.75,
+                          color: isMine ? "var(--text-accent)" : "var(--text-secondary)",
+                        }}
+                      >
+                        {ownerNames[team.ownerUid]}
+                      </span>
+                    )}
+                  </span>
                   <span>{total}</span>
                 </div>
 
@@ -217,40 +331,23 @@ export function DetailedScoring({ myTeamId }) {
                             <span style={{ fontWeight: 600, color: isFinished ? "var(--text-muted)" : "var(--text-secondary)" }}>{s.pos}</span>{" "}
                             {s.player ? `${s.player.name} (${s.player.team})` : "empty"}
                           </span>
-                          {isLive && (
-                            <span
-                              style={{
-                                fontSize: 9,
-                                fontWeight: 600,
-                                border: "1px solid var(--text-success)",
-                                color: "var(--text-success)",
-                                background: "var(--surface-2)",
-                                borderRadius: 7,
-                                padding: "1px 6px",
-                              }}
-                            >
-                              LIVE
-                            </span>
-                          )}
+                          {isLive && <LivePill />}
                         </div>
                         {statParts.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 3 }}>
-                            {statParts.map((part, i) => (
-                              <span
-                                key={i}
-                                style={{
-                                  fontSize: 10,
-                                  color: isFinished ? "var(--text-muted)" : isLive ? "var(--text-success)" : "var(--text-muted)",
-                                  background: isLive ? "var(--surface-2)" : "var(--surface-1)",
-                                  border: isLive ? "0.5px solid var(--text-success)" : "none",
-                                  borderRadius: 6,
-                                  padding: "1px 6px",
-                                }}
-                              >
-                                {part}
-                              </span>
-                            ))}
-                          </div>
+                          <StatPills
+                            parts={statParts}
+                            pillStyle={{
+                              flexShrink: 0,
+                              fontSize: 10,
+                              lineHeight: 1,
+                              color: isFinished ? "var(--text-muted)" : isLive ? "var(--text-success)" : "var(--text-muted)",
+                              background: isLive ? "var(--surface-2)" : "var(--surface-1)",
+                              border: isLive ? "0.5px solid var(--text-success)" : "0.5px solid var(--border)",
+                              borderRadius: 999,
+                              padding: "2px 6px",
+                              boxSizing: "border-box",
+                            }}
+                          />
                         )}
                       </div>
                       <div

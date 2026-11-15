@@ -36,11 +36,15 @@ service cloud.firestore {
     // checked here.
     match /lineups/{lineupId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null
+      allow create, update: if request.auth != null
         && (
           request.auth.uid == get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data.ownerUid
           || isCommissioner()
         );
+      // Deletes can't reference request.resource (it's null on a delete),
+      // so they get their own rule. Commissioner only -- used by the
+      // Commissioner tab's "Remove a team" tool.
+      allow delete: if request.auth != null && isCommissioner();
     }
 
     match /leaguePointOverrides/{overrideId} {

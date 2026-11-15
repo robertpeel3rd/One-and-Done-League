@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
+import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 
 const REFRESH_INTERVAL_MS = 30000;
 
 export function Standings({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
+  const ownerNames = useOwnerFirstNames();
   const [mode, setMode] = useState("current");
   const [teams, setTeams] = useState([]);
   const [lineups, setLineups] = useState([]);
@@ -192,7 +194,22 @@ export function Standings({ myTeamId }) {
                   borderRadius: "var(--radius)",
                 }}
               >
-                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>{t.name}</span>
+                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                  {t.name}
+                  {ownerNames[t.ownerUid] && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: 9,
+                        lineHeight: 1.1,
+                        opacity: 0.75,
+                        color: isMine ? "var(--text-accent)" : "var(--text-secondary)",
+                      }}
+                    >
+                      {ownerNames[t.ownerUid]}
+                    </span>
+                  )}
+                </span>
                 <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 500, marginLeft: 8 }}>
                   {t.leaguePoints} League Points
                 </span>

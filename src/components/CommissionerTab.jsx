@@ -4,12 +4,14 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   arrayUnion,
   arrayRemove,
   collection,
   getDocs,
   query,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
@@ -30,6 +32,10 @@ export function CommissionerTab({ user }) {
   const [pointsTeamId, setPointsTeamId] = useState("");
   const [pointsWeek, setPointsWeek] = useState(1);
   const [pointsValue, setPointsValue] = useState("");
+
+  const [removeTeamId, setRemoveTeamId] = useState("");
+  const [removeConfirmText, setRemoveConfirmText] = useState("");
+  const [removing, setRemoving] = useState(false);
 
   async function loadEverything() {
     setLoading(true);
@@ -146,6 +152,38 @@ export function CommissionerTab({ user }) {
     );
     setOverridePlayerId("");
     alert("Lineup override saved.");
+  }
+
+  // Deletes a team plus ALL of its weekly lineups and any League Points
+  // overrides for it. The team doc itself is deleted LAST, so if anything
+  // fails partway the team still exists and the removal can simply be
+  // retried. Not undoable.
+  async function removeTeam() {
+    const team = teams.find((t) => t.id === removeTeamId);
+    if (!team || removeConfirmText.trim() !== team.name) return;
+    setRemoving(true);
+    try {
+      const [lineupSnap, overrideSnap] = await Promise.all([
+        getDocs(query(collection(db, "lineups"), where("teamId", "==", team.id))),
+        getDocs(query(collection(db, "leaguePointOverrides"), where("teamId", "==", team.id))),
+      ]);
+      const refs = [...lineupSnap.docs, ...overrideSnap.docs].map((d) => d.ref);
+      for (let i = 0; i < refs.length; i += 400) {
+        const batch = writeBatch(db);
+        refs.slice(i, i + 400).forEach((r) => batch.delete(r));
+        await batch.commit();
+      }
+      await deleteDoc(doc(db, "teams", team.id));
+      setRemoveTeamId("");
+      setRemoveConfirmText("");
+      await loadEverything();
+      alert(`Removed "${team.name}" and ${refs.length} related record(s).`);
+    } catch (err) {
+      console.error("Remove team failed:", err);
+      alert("Couldn't remove the team. Nothing was lost; the team may be partly cleaned up, so try again.");
+    } finally {
+      setRemoving(false);
+    }
   }
 
   async function submitPointsOverride() {
@@ -300,6 +338,45 @@ export function CommissionerTab({ user }) {
             />
           </div>
           <button onClick={submitPointsOverride}>Save override</button>
+        </div>
+      </section>
+
+      <section>
+        <h3 style={{ marginBottom: 8 }}>Remove a team</h3>
+        <p style={{ fontSize: 13, color: "var(--text-secondary, #666)", marginTop: 0 }}>
+          Permanently deletes a team and all of its weekly lineups. This can't be undone. Standings recalculate without the team, including past weeks.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <select
+            value={removeTeamId}
+            onChange={(e) => {
+              setRemoveTeamId(e.target.value);
+              setRemoveConfirmText("");
+            }}
+          >
+            <option value="">Select team to remove</option>
+            {teams
+              .filter((t) => t.ownerUid !== user.uid)
+              .map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+          </select>
+          {removeTeamId && (
+            <>
+              <input
+                placeholder={`Type "${teams.find((t) => t.id === removeTeamId)?.name}" to confirm`}
+                value={removeConfirmText}
+                onChange={(e) => setRemoveConfirmText(e.target.value)}
+              />
+              <button
+                onClick={removeTeam}
+                disabled={removing || removeConfirmText.trim() !== teams.find((t) => t.id === removeTeamId)?.name}
+                style={{ color: "var(--text-danger)", border: "1px solid var(--text-danger)" }}
+              >
+                {removing ? "Removing..." : "Remove team permanently"}
+              </button>
+            </>
+          )}
         </div>
       </section>
 

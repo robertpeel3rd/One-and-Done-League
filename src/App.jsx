@@ -11,13 +11,14 @@ import { DetailedScoring } from "./components/DetailedScoring";
 import { UsedPlayers } from "./components/UsedPlayers";
 import { CommissionerTab } from "./components/CommissionerTab";
 import { About } from "./components/About";
+import { Legend } from "./components/Legend";
 import { BottomNav } from "./components/BottomNav";
 import { MoreMenu } from "./components/MoreMenu";
 import { Logo } from "./components/Logo";
 import { signInWithGoogle } from "./lib/firebase";
 
 const MAIN_TABS = ["Standings", "Weekly Scoring", "Detailed Scoring", "My Lineup", "More"];
-const MORE_OPTIONS = ["Used Players", "About"];
+const MORE_OPTIONS = ["Used Players", "About", "Legend"];
 
 function App() {
   const { user, loading } = useAuth();
@@ -91,6 +92,7 @@ function App() {
                 {activeTab === "My Lineup" && <RosterBuilder team={team} />}
                 {activeTab === "Used Players" && <UsedPlayers team={team} />}
                 {activeTab === "About" && <About user={user} />}
+                {activeTab === "Legend" && <Legend />}
                 {activeTab === "Commissioner" && <CommissionerTab user={user} />}
               </div>
             )}
