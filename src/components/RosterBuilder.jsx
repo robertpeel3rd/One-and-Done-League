@@ -603,7 +603,7 @@ export function RosterBuilder({ team }) {
             >
               <div
                 style={{
-                  width: 44,
+                  width: 40,
                   flexShrink: 0,
                   borderRadius: "var(--radius)",
                   display: "flex",
@@ -633,25 +633,39 @@ export function RosterBuilder({ team }) {
                   {player ? (
                     <>
                       <div style={{ fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
-                        {player.name}
+                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {player.name}
+                        </span>
                         <InjuryDot info={getInjuryInfo(player.injuryStatus)} />
                       </div>
-                      <div style={{ color: "var(--text-accent)", opacity: 0.75, fontSize: 12, marginTop: 1 }}>
-                        {player.pos} · {player.team}
-                        {isReadOnly || player.gameCompleted === true ? (
-                          <> · Final</>
-                        ) : (
-                          !isGameStarted(player.kickoffTime) &&
-                          player.kickoffTime && (
-                            <>
-                              {" "}· {formatKickoffCompact(player.kickoffTime)}
-                              {player.opponent ? ` ${player.isHome ? "vs" : "@"} ${player.opponent}` : ""}
-                            </>
-                          )
-                        )}
+                      <div
+                        style={{
+                          color: "var(--text-accent)",
+                          fontSize: 11,
+                          marginTop: 1,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        <span style={{ opacity: 0.75 }}>
+                          {player.pos} · {player.team}
+                          {isReadOnly || player.gameCompleted === true ? (
+                            <> · Final</>
+                          ) : (
+                            !isGameStarted(player.kickoffTime) &&
+                            player.kickoffTime && (
+                              <>
+                                {" "}· {formatKickoffCompact(player.kickoffTime)}
+                                {player.opponent ? ` ${player.isHome ? "vs" : "@"} ${player.opponent}` : ""}
+                              </>
+                            )
+                          )}
+                        </span>
                         {getInjuryInfo(player.injuryStatus) && (
                           <>
-                            {" "}· <InjuryText info={getInjuryInfo(player.injuryStatus)} />
+                            <span style={{ opacity: 0.75 }}>{" "}· </span>
+                            <InjuryText info={getInjuryInfo(player.injuryStatus)} />
                           </>
                         )}
                       </div>
@@ -662,7 +676,7 @@ export function RosterBuilder({ team }) {
                 </span>
 
                 {!isReadOnly && (
-                  <div style={{ width: 64, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {locked ? (
                       <button
                         onClick={() => triggerWobble(idx)}
@@ -690,7 +704,7 @@ export function RosterBuilder({ team }) {
                           height: 32,
                           minHeight: 32,
                           boxSizing: "border-box",
-                          padding: "0 16px",
+                          padding: "0 12px",
                           fontSize: 13,
                           borderRadius: "var(--radius)",
                           border: "1px solid var(--border-strong)",

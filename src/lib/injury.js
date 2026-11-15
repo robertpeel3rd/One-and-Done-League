@@ -3,10 +3,10 @@
 // have null and show nothing.
 
 const INJURY_INFO = {
-  questionable: { key: "questionable", label: "Questionable", color: "#F2C200", textColor: "var(--text-warning)", ring: false },
-  doubtful: { key: "doubtful", label: "Doubtful", color: "#F7861B", textColor: "#B85A0A", ring: false },
-  out: { key: "out", label: "Out", color: "#E24B4A", textColor: "var(--text-danger)", ring: false },
-  ir: { key: "ir", label: "Injured reserve", color: "#E24B4A", textColor: "var(--text-danger)", ring: true },
+  questionable: { key: "questionable", label: "Questionable", color: "#F2C200", textColor: "#F2C200", ring: false },
+  doubtful: { key: "doubtful", label: "Doubtful", color: "#F7861B", textColor: "#F7861B", ring: false },
+  out: { key: "out", label: "Out", color: "#E24B4A", textColor: "#E24B4A", ring: false },
+  ir: { key: "ir", label: "IR", color: "#E24B4A", textColor: "#E24B4A", ring: true },
 };
 
 // Returns display info for a Sleeper injury status string, or null if the
