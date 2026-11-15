@@ -13,6 +13,7 @@ import { useLeagueData } from "../lib/leagueDataContext";
 import { InjuryDot, InjuryText } from "./Injury";
 import { getInjuryInfo, isRuledOut } from "../lib/injury";
 import { UsedPill } from "./Pills";
+import { Icon } from "./Icon";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
@@ -449,7 +450,7 @@ export function RosterBuilder({ team }) {
               lineHeight: 1.4,
             }}
           >
-            <i className="ti ti-alert-triangle" style={{ fontSize: 18, flexShrink: 0 }} aria-hidden="true" />
+            <Icon name="alert-triangle" style={{ fontSize: 18, flexShrink: 0 }} />
             <div>{w.name} is ruled out this week. Swap him before kickoff.</div>
           </div>
         ))}

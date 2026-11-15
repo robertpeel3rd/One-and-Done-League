@@ -3,6 +3,7 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { LivePill } from "./Pills";
+import { Icon } from "./Icon";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
@@ -134,10 +135,9 @@ export function WeeklyScoring({ myTeamId }) {
                 >
                   <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
                     {team.name}
-                    <i
-                      className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
+                    <Icon
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
                       style={{ fontSize: 13, marginLeft: 6, verticalAlign: -1 }}
-                      aria-hidden="true"
                     />
                     {ownerNames[team.ownerUid] && (
                       <span

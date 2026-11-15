@@ -1,13 +1,15 @@
+import { Icon } from "./Icon";
+
 const ICONS = {
-  Standings: "ti-chart-bar",
-  "Weekly Scoring": "ti-calendar",
-  "Detailed Scoring": "ti-list-details",
-  Teams: "ti-users",
-  "My Lineup": "ti-list",
-  "Used Players": "ti-history",
-  About: "ti-info-circle",
-  Commissioner: "ti-shield",
-  More: "ti-dots",
+  Standings: "chart-bar",
+  "Weekly Scoring": "calendar",
+  "Detailed Scoring": "list-details",
+  Teams: "users",
+  "My Lineup": "list",
+  "Used Players": "history",
+  About: "info-circle",
+  Commissioner: "shield",
+  More: "dots",
 };
 
 export function BottomNav({ tabs, activeTab, onSelect }) {
@@ -46,7 +48,7 @@ export function BottomNav({ tabs, activeTab, onSelect }) {
               color: isActive ? "var(--text-accent)" : "var(--text-muted)",
             }}
           >
-            <i className={`ti ${ICONS[tab] || "ti-circle"}`} style={{ fontSize: 16 }} aria-hidden="true" />
+            <Icon name={ICONS[tab] || "circle"} style={{ fontSize: 16 }} />
             <span style={{ fontSize: 9, fontWeight: isActive ? 500 : 400 }}>{tab}</span>
           </button>
         );
