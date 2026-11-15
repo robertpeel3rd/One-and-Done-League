@@ -17,7 +17,7 @@ export function About({ user }) {
       <div style={section}>
         <div style={heading}>League Points</div>
         <p style={body}>
-          Each week, teams are ranked by their total Weekly Points. The top half of teams earn League Points — more points for a higher finish, none for the bottom half. Points accumulate across the season to determine the standings.
+          Each week, teams are ranked by their total Weekly Points. The top half of teams earn League Points — more points for a higher finish, none for the bottom half. Ties in Weekly Points are broken by total touchdowns, then total yards, then total field goals made across your lineup. If teams are still tied after that, they split the League Points. Points accumulate across the season to determine the standings.
         </p>
       </div>
 

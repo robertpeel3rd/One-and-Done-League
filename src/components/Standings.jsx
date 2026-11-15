@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
+import { rankTeams, leaguePointsFromRanking } from "../lib/ranking";
 
 export function Standings({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
@@ -31,36 +32,9 @@ export function Standings({ myTeamId }) {
     return 0;
   }
 
-  function weeklyTotal(teamId, week) {
-    const lineup = lineups.find((l) => l.teamId === teamId && l.week === week);
-    if (!lineup || !lineup.slots) return 0;
-    return Object.values(lineup.slots).reduce((sum, playerId) => sum + pointsForWeek(playerId, week), 0);
-  }
-
   function leaguePointsForWeek(week) {
-    const n = teams.length;
-    const topHalfSize = Math.floor(n / 2);
-    if (topHalfSize === 0) return {};
-    const ranked = teams.map((t) => ({ id: t.id, pts: weeklyTotal(t.id, week) })).sort((a, b) => b.pts - a.pts);
-    const result = {};
-    let i = 0;
-    while (i < topHalfSize) {
-      let j = i;
-      while (j + 1 < ranked.length && ranked[j + 1].pts === ranked[i].pts) j++;
-      const tieCount = j - i + 1;
-      let sum = 0;
-      let slotsInTopHalf = 0;
-      for (let rank = i; rank <= j; rank++) {
-        if (rank < topHalfSize) {
-          sum += topHalfSize - rank;
-          slotsInTopHalf++;
-        }
-      }
-      const share = slotsInTopHalf > 0 ? Math.floor(sum / tieCount) : 0;
-      for (let k = i; k <= j; k++) result[ranked[k].id] = share;
-      i = j + 1;
-    }
-    return result;
+    const ranked = rankTeams({ teams, lineups, scoresByPlayer, week, getPoints: pointsForWeek });
+    return leaguePointsFromRanking(ranked, teams.length);
   }
 
   function leaguePointsForTeamWeek(teamId, week, computedMap) {

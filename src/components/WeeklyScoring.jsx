@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { LivePill } from "./Pills";
 import { Icon } from "./Icon";
+import { rankTeams } from "../lib/ranking";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
@@ -50,25 +51,28 @@ export function WeeklyScoring({ myTeamId }) {
 
   const teamRows = useMemo(() => {
     if (teams.length === 0 || !selectedWeek) return [];
-    return teams
-      .map((t) => {
-        const lineup = lineups.find((l) => l.teamId === t.id && l.week === selectedWeek);
-        const slots = lineup?.slots || {};
-        const slotEntries = SLOTS.map((pos, idx) => {
-          const playerId = slots[idx];
-          const player = playerId ? playerById[playerId] : null;
-          const pts = playerId ? pointsForWeek(playerId, selectedWeek) : 0;
-          return { pos, player, pts };
-        });
-        const total = Math.round(slotEntries.reduce((sum, s) => sum + s.pts, 0) * 10) / 10;
-        return { team: t, slotEntries, total };
-      })
-      .sort((a, b) => b.total - a.total);
+    const ranked = rankTeams({ teams, lineups, scoresByPlayer, week: selectedWeek, getPoints: pointsForWeek });
+    const teamById = {};
+    teams.forEach((t) => (teamById[t.id] = t));
+    return ranked.map((r) => {
+      const t = teamById[r.id];
+      const lineup = lineups.find((l) => l.teamId === t.id && l.week === selectedWeek);
+      const slots = lineup?.slots || {};
+      const slotEntries = SLOTS.map((pos, idx) => {
+        const playerId = slots[idx];
+        const player = playerId ? playerById[playerId] : null;
+        const pts = playerId ? pointsForWeek(playerId, selectedWeek) : 0;
+        return { pos, player, pts };
+      });
+      const total = Math.round(slotEntries.reduce((sum, s) => sum + s.pts, 0) * 10) / 10;
+      return { team: t, slotEntries, total, tiebreakerWin: r.tiebreakerWin };
+    });
   }, [teams, lineups, scoresByPlayer, playerById, selectedWeek, currentWeek]);
 
   if (loading || weekLoading || selectedWeek === null) return <p>Loading weekly scoring...</p>;
   if (teams.length === 0) return <p>No teams yet.</p>;
 
+  const cutoff = Math.floor(teams.length / 2);
   const weekOptions = Array.from({ length: currentWeek }, (_, i) => i + 1);
 
   return (
@@ -88,11 +92,29 @@ export function WeeklyScoring({ myTeamId }) {
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {teamRows.map(({ team, slotEntries, total }, i) => {
+        {teamRows.map(({ team, slotEntries, total, tiebreakerWin }, i) => {
           const isMine = team.id === myTeamId;
           const isExpanded = expandedTeamId === team.id;
           return (
-            <div key={team.id} style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
+            <Fragment key={team.id}>
+            {i === cutoff && cutoff > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginLeft: 40,
+                  color: "var(--text-muted)",
+                  fontSize: 10,
+                  letterSpacing: 0.4,
+                }}
+              >
+                <span style={{ flex: 1, borderTop: "1px dashed var(--border-strong)" }} />
+                <span style={{ whiteSpace: "nowrap" }}>↑ IN THE POINTS · OUT OF THE POINTS ↓</span>
+                <span style={{ flex: 1, borderTop: "1px dashed var(--border-strong)" }} />
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
               <div
                 style={{
                   width: 32,
@@ -154,6 +176,20 @@ export function WeeklyScoring({ myTeamId }) {
                     )}
                   </span>
                   <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 700, marginLeft: 8 }}>
+                    {tiebreakerWin && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 400,
+                          color: "var(--text-secondary)",
+                          marginLeft: 6,
+                          marginRight: 6,
+                          letterSpacing: 0.3,
+                        }}
+                      >
+                        TIEBREAKER
+                      </span>
+                    )}
                     {total}
                   </span>
                 </button>
@@ -192,6 +228,7 @@ export function WeeklyScoring({ myTeamId }) {
                   })}
               </div>
             </div>
+            </Fragment>
           );
         })}
       </div>
