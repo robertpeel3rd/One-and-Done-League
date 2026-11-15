@@ -161,6 +161,11 @@ function seasonTotalFor(player) {
 function sortPickerPool(pool, sortMode) {
   if (sortMode === "projected") {
     return [...pool].sort((a, b) => {
+      // Out / IR players sink to the bottom: Sleeper keeps projecting
+      // points for them, which would otherwise rank them near the top.
+      const aOut = isRuledOut(a.injuryStatus);
+      const bOut = isRuledOut(b.injuryStatus);
+      if (aOut !== bOut) return aOut ? 1 : -1;
       const aHas = typeof a.projectedPoints === "number";
       const bHas = typeof b.projectedPoints === "number";
       if (aHas !== bHas) return aHas ? -1 : 1;
