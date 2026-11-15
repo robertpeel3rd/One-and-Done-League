@@ -11,6 +11,7 @@ import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { InjuryDot, InjuryText } from "./Injury";
+import { FitText } from "./FitText";
 import { getInjuryInfo, isRuledOut } from "../lib/injury";
 import { UsedPill } from "./Pills";
 import { Icon } from "./Icon";
@@ -621,6 +622,7 @@ export function RosterBuilder({ team }) {
               <div
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -629,20 +631,30 @@ export function RosterBuilder({ team }) {
                   borderRadius: "var(--radius)",
                 }}
               >
-                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    textAlign: "left",
+                    // Keep the row exactly as tall as before (two body-height
+                    // lines + 1px) and center the tighter text inside it.
+                    ...(player
+                      ? { display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "calc(1.45rem * 2 + 1px)" }
+                      : {}),
+                  }}
+                >
                   {player ? (
                     <>
-                      <div style={{ fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {player.name}
-                        </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, lineHeight: 1.15 }}>
+                        <FitText text={player.name} max={17} min={12} />
                         <InjuryDot info={getInjuryInfo(player.injuryStatus)} />
                       </div>
                       <div
                         style={{
                           color: "var(--text-accent)",
-                          fontSize: 11,
-                          marginTop: 1,
+                          fontSize: 10.5,
+                          lineHeight: 1.15,
+                          marginTop: 0,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
