@@ -632,18 +632,29 @@ export function RosterBuilder({ team }) {
                 <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
                   {player ? (
                     <>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <span>
-                          {player.name}{" "}
-                          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({player.team})</span>
-                        </span>
+                      <div style={{ fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                        {player.name}
                         <InjuryDot info={getInjuryInfo(player.injuryStatus)} />
-                      </span>
-                      {getInjuryInfo(player.injuryStatus) && (
-                        <span style={{ display: "block", fontSize: 12, marginTop: 1 }}>
-                          <InjuryText info={getInjuryInfo(player.injuryStatus)} />
-                        </span>
-                      )}
+                      </div>
+                      <div style={{ color: "var(--text-accent)", opacity: 0.75, fontSize: 12, marginTop: 1 }}>
+                        {player.pos} · {player.team}
+                        {isReadOnly || player.gameCompleted === true ? (
+                          <> · Final</>
+                        ) : (
+                          !isGameStarted(player.kickoffTime) &&
+                          player.kickoffTime && (
+                            <>
+                              {" "}· {formatKickoffCompact(player.kickoffTime)}
+                              {player.opponent ? ` ${player.isHome ? "vs" : "@"} ${player.opponent}` : ""}
+                            </>
+                          )
+                        )}
+                        {getInjuryInfo(player.injuryStatus) && (
+                          <>
+                            {" "}· <InjuryText info={getInjuryInfo(player.injuryStatus)} />
+                          </>
+                        )}
+                      </div>
                     </>
                   ) : (
                     <span style={{ color: "var(--text-muted)" }}>empty</span>
