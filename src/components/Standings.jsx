@@ -1,58 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { useMemo, useState } from "react";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
+import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
-
-const REFRESH_INTERVAL_MS = 30000;
 
 export function Standings({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
   const ownerNames = useOwnerFirstNames();
   const [mode, setMode] = useState("current");
-  const [teams, setTeams] = useState([]);
-  const [lineups, setLineups] = useState([]);
-  const [scoresByPlayer, setScoresByPlayer] = useState({});
-  const [overrides, setOverrides] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  async function loadAll() {
-    const [teamsSnap, lineupsSnap, scoresSnap, overridesSnap] = await Promise.all([
-      getDocs(collection(db, "teams")),
-      getDocs(collection(db, "lineups")),
-      getDocs(collection(db, "liveScores")),
-      getDocs(collection(db, "leaguePointOverrides")),
-    ]);
-
-    setTeams(teamsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    setLineups(lineupsSnap.docs.map((d) => d.data()));
-
-    const scoreMap = {};
-    scoresSnap.docs.forEach((d) => {
-      scoreMap[d.id] = d.data();
-    });
-    setScoresByPlayer(scoreMap);
-
-    const overrideMap = {};
-    overridesSnap.docs.forEach((d) => {
-      const data = d.data();
-      overrideMap[`${data.teamId}_${data.week}`] = data.leaguePoints;
-    });
-    setOverrides(overrideMap);
-
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadAll();
-    }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
+  const { teams, lineups, scoresByPlayer, overrides, loading } = useLeagueData();
 
   // Reads a specific week's score for a player, using the weeklyPoints map
   // (which preserves history across weeks) rather than the single top-level

@@ -1,22 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
+import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { LivePill } from "./Pills";
 
-const REFRESH_INTERVAL_MS = 30000;
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
 export function WeeklyScoring({ myTeamId }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
   const ownerNames = useOwnerFirstNames();
   const [selectedWeek, setSelectedWeek] = useState(null);
-  const [teams, setTeams] = useState([]);
-  const [players, setPlayers] = useState([]);
-  const [lineups, setLineups] = useState([]);
-  const [scoresByPlayer, setScoresByPlayer] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { teams, players, lineups, scoresByPlayer, loading } = useLeagueData();
   const [expandedTeamId, setExpandedTeamId] = useState(null);
 
   useEffect(() => {
@@ -24,35 +18,6 @@ export function WeeklyScoring({ myTeamId }) {
       setSelectedWeek(currentWeek);
     }
   }, [currentWeek, selectedWeek]);
-
-  async function loadAll() {
-    const [teamsSnap, playersSnap, lineupsSnap, scoresSnap] = await Promise.all([
-      getDocs(collection(db, "teams")),
-      getDocs(collection(db, "players")),
-      getDocs(collection(db, "lineups")),
-      getDocs(collection(db, "liveScores")),
-    ]);
-    setTeams(teamsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    setPlayers(playersSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    setLineups(lineupsSnap.docs.map((d) => d.data()));
-    const scoreMap = {};
-    scoresSnap.docs.forEach((d) => {
-      scoreMap[d.id] = d.data();
-    });
-    setScoresByPlayer(scoreMap);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadAll();
-    }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
 
   const playerById = useMemo(() => {
     const map = {};

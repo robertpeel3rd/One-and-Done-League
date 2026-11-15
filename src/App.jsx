@@ -14,6 +14,7 @@ import { About } from "./components/About";
 import { Legend } from "./components/Legend";
 import { BottomNav } from "./components/BottomNav";
 import { MoreMenu } from "./components/MoreMenu";
+import { LeagueDataProvider } from "./components/LeagueDataProvider";
 import { Logo } from "./components/Logo";
 import { signInWithGoogle } from "./lib/firebase";
 
@@ -61,6 +62,7 @@ function App() {
   }
 
   return (
+    <LeagueDataProvider enabled={Boolean(user)}>
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
       <div
         style={{
@@ -108,6 +110,7 @@ function App() {
         <BottomNav tabs={MAIN_TABS} activeTab={displayTab} onSelect={handleNavSelect} />
       )}
     </div>
+    </LeagueDataProvider>
   );
 }
 

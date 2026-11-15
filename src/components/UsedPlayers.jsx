@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { useLeagueData } from "../lib/leagueDataContext";
 
 const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DST"];
 
@@ -10,7 +11,7 @@ function lastName(fullName = "") {
 }
 
 export function UsedPlayers({ team }) {
-  const [players, setPlayers] = useState([]);
+  const { players, loading: leagueLoading } = useLeagueData();
   const [usedEntries, setUsedEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState("az");
@@ -18,12 +19,9 @@ export function UsedPlayers({ team }) {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [playersSnap, lineupsSnap] = await Promise.all([
-        getDocs(collection(db, "players")),
-        getDocs(query(collection(db, "lineups"), where("teamId", "==", team.id))),
-      ]);
-
-      setPlayers(playersSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const lineupsSnap = await getDocs(
+        query(collection(db, "lineups"), where("teamId", "==", team.id))
+      );
 
       const entries = [];
       lineupsSnap.docs.forEach((d) => {
@@ -71,7 +69,7 @@ export function UsedPlayers({ team }) {
     );
   }, [groupedByPosition]);
 
-  if (loading) return <p>Loading used players...</p>;
+  if (loading || leagueLoading) return <p>Loading used players...</p>;
 
   if (orderedPositions.length === 0) {
     return <p style={{ color: "var(--text-muted)" }}>No players used yet this season.</p>;

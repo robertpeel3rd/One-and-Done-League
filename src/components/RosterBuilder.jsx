@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
+import { useLeagueData } from "../lib/leagueDataContext";
 import { InjuryDot, InjuryText } from "./Injury";
 import { getInjuryInfo, isRuledOut } from "../lib/injury";
 import { UsedPill } from "./Pills";
@@ -206,7 +207,6 @@ function LockIcon() {
 export function RosterBuilder({ team }) {
   const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
   const [selectedWeek, setSelectedWeek] = useState(null);
-  const [players, setPlayers] = useState([]);
   const [allLineups, setAllLineups] = useState([]);
   const [localSlots, setLocalSlots] = useState({});
   const [loading, setLoading] = useState(true);
@@ -237,30 +237,15 @@ export function RosterBuilder({ team }) {
     }
   }, [currentWeek, selectedWeek]);
 
-  useEffect(() => {
-    async function loadPlayers() {
-      const [playersSnap, liveScoresSnap] = await Promise.all([
-        getDocs(collection(db, "players")),
-        getDocs(collection(db, "liveScores")),
-      ]);
-      const liveScoresById = {};
-      liveScoresSnap.docs.forEach((d) => {
-        liveScoresById[d.id] = d.data();
-      });
-      setPlayers(
-        playersSnap.docs.map((d) => {
-          const ls = liveScoresById[d.id];
-          return {
-            id: d.id,
-            ...d.data(),
-            projectedPoints: ls?.projectedPoints,
-            weeklyPoints: ls?.weeklyPoints,
-          };
-        })
-      );
-    }
-    loadPlayers();
-  }, []);
+  const { players: basePlayers, scoresByPlayer, loading: leagueLoading } = useLeagueData();
+  const players = useMemo(
+    () =>
+      basePlayers.map((p) => {
+        const ls = scoresByPlayer[p.id];
+        return { ...p, projectedPoints: ls?.projectedPoints, weeklyPoints: ls?.weeklyPoints };
+      }),
+    [basePlayers, scoresByPlayer]
+  );
 
   useEffect(() => {
     async function loadLineups() {
@@ -431,7 +416,7 @@ export function RosterBuilder({ team }) {
     return sortPickerPool(filtered, sortMode);
   }, [pickerSlot, players, searchTerm, localSlots, usedWeekByPlayer, sortMode]);
 
-  if (weekLoading || loading || selectedWeek === null) return <p>Loading your lineup...</p>;
+  if (weekLoading || loading || leagueLoading || selectedWeek === null) return <p>Loading your lineup...</p>;
 
   // Players in this lineup who are Out/IR and whose game hasn't started yet
   // (once it starts the pick is locked, so the warning disappears).
