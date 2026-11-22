@@ -94,7 +94,6 @@ export function WeeklyScoring({ myTeamId }) {
         Weekly Points for Week {selectedWeek}
         {selectedWeek === currentWeek ? ", updated automatically." : "."}
       </p>
-      {selectedWeek === currentWeek && <UpdatedAt />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {teamRows.map(({ team, slotEntries, total, tiebreakerWin }, i) => {
@@ -237,6 +236,7 @@ export function WeeklyScoring({ myTeamId }) {
           );
         })}
       </div>
+      {selectedWeek === currentWeek && <UpdatedAt />}
     </div>
   );
 }

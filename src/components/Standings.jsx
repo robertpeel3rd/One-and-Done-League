@@ -158,7 +158,6 @@ export function Standings({ myTeamId }) {
                       fontSize: 26,
                       lineHeight: 1,
                       fontWeight: 500,
-                      fontVariantNumeric: "tabular-nums",
                     }}
                   >
                     {t.leaguePoints}

@@ -247,7 +247,6 @@ export function DetailedScoring({ myTeamId }) {
       <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
         Detailed Scoring for Week {currentWeek} — every player, every stat that counted.
       </p>
-      <UpdatedAt />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {teamRows.map(({ team, slotEntries, total }, i) => {
@@ -374,6 +373,7 @@ export function DetailedScoring({ myTeamId }) {
           );
         })}
       </div>
+      <UpdatedAt />
     </div>
   );
 }
