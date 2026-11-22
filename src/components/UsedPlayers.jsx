@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { LoadError } from "./LoadError";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useLeagueData } from "../lib/leagueDataContext";
@@ -15,26 +16,34 @@ export function UsedPlayers({ team }) {
   const [usedEntries, setUsedEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState("az");
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const lineupsSnap = await getDocs(
-        query(collection(db, "lineups"), where("teamId", "==", team.id))
-      );
+      setLoadError(false);
+      try {
+        const lineupsSnap = await getDocs(
+          query(collection(db, "lineups"), where("teamId", "==", team.id))
+        );
 
-      const entries = [];
-      lineupsSnap.docs.forEach((d) => {
-        const data = d.data();
-        Object.values(data.slots || {}).forEach((playerId) => {
-          if (playerId) entries.push({ playerId, week: data.week });
+        const entries = [];
+        lineupsSnap.docs.forEach((d) => {
+          const data = d.data();
+          Object.values(data.slots || {}).forEach((playerId) => {
+            if (playerId) entries.push({ playerId, week: data.week });
+          });
         });
-      });
-      setUsedEntries(entries);
+        setUsedEntries(entries);
+      } catch (err) {
+        console.error("Failed to load used players:", err);
+        setLoadError(true);
+      }
       setLoading(false);
     }
     load();
-  }, [team.id]);
+  }, [team.id, attempt]);
 
   const groupedByPosition = useMemo(() => {
     const usedPlayers = usedEntries
@@ -68,6 +77,8 @@ export function UsedPlayers({ team }) {
       present.filter((pos) => !POSITION_ORDER.includes(pos))
     );
   }, [groupedByPosition]);
+
+  if (loadError) return <LoadError message="Couldn't load your used players. Check your connection and try again." onRetry={() => setAttempt((n) => n + 1)} />;
 
   if (loading || leagueLoading) return <p>Loading used players...</p>;
 

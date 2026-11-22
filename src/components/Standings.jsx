@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
+import { LoadError } from "./LoadError";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { rankTeams, leaguePointsFromRanking } from "../lib/ranking";
 
 export function Standings({ myTeamId }) {
-  const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
+  const { week: currentWeek, loading: weekLoading, error: weekError, retry: retryWeek } = useCurrentWeek();
   const ownerNames = useOwnerFirstNames();
   const [mode, setMode] = useState("current");
   const { teams, lineups, scoresByPlayer, overrides, loading } = useLeagueData();
@@ -66,6 +67,8 @@ export function Standings({ myTeamId }) {
     const weeksIncludingCurrent = Array.from({ length: currentWeek }, (_, i) => i + 1);
     return sumWeeks(weeksIncludingCurrent);
   }, [teams, lineups, scoresByPlayer, currentWeek, overrides]);
+
+  if (weekError) return <LoadError message="Couldn't load the current NFL week. Check your connection and try again." onRetry={retryWeek} />;
 
   if (loading || weekLoading) return <p>Loading standings...</p>;
   if (teams.length === 0) return <p>No teams yet.</p>;
@@ -139,8 +142,41 @@ export function Standings({ myTeamId }) {
                     </span>
                   )}
                 </span>
-                <span style={{ flexShrink: 0, textAlign: "right", fontWeight: 500, marginLeft: 8 }}>
-                  {t.leaguePoints} League Points
+                <span
+                  style={{
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginLeft: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      minWidth: 30,
+                      textAlign: "right",
+                      fontSize: 26,
+                      lineHeight: 1,
+                      fontWeight: 500,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {t.leaguePoints}
+                  </span>
+                  <span
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      fontSize: 11,
+                      fontWeight: 400,
+                      lineHeight: "10.5px",
+                      textAlign: "left",
+                      color: isMine ? "var(--text-accent)" : "var(--text-secondary)",
+                    }}
+                  >
+                    <span>League</span>
+                    <span>Points</span>
+                  </span>
                 </span>
               </div>
             </div>

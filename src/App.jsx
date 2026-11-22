@@ -17,6 +17,7 @@ import { MoreMenu } from "./components/MoreMenu";
 import { LeagueDataProvider } from "./components/LeagueDataProvider";
 import { Logo } from "./components/Logo";
 import { signInWithGoogle } from "./lib/firebase";
+import { tabFromHash, hashForTab } from "./lib/tabRoute";
 
 const MAIN_TABS = ["Standings", "Weekly Scoring", "Detailed Scoring", "My Lineup", "More"];
 const MORE_OPTIONS = ["Used Players", "About", "Legend"];
@@ -24,19 +25,46 @@ const MORE_OPTIONS = ["Used Players", "About", "Legend"];
 function App() {
   const { user, loading } = useAuth();
   const [team, setTeam] = useState(null);
-  const [activeTab, setActiveTab] = useState("Standings");
+  const [activeTab, setActiveTab] = useState(() => tabFromHash(window.location.hash));
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
+  // Keep the selected tab in step with the web address, so reload and the
+  // phone's back button both work.
   useEffect(() => {
-    async function checkCommissioner() {
-      if (!user) return;
-      const snap = await getDoc(doc(db, "leagueSettings", "main"));
-      if (snap.exists()) {
-        setIsCommissioner((snap.data().commissionerUids || []).includes(user.uid));
+    function onHashChange() {
+      setActiveTab(tabFromHash(window.location.hash));
+      setMoreOpen(false);
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    let retryTimer = null;
+    // If the lookup fails (e.g. a brief network drop) try again a few times
+    // instead of silently leaving a commissioner without their tab.
+    async function checkCommissioner(attempt) {
+      try {
+        const snap = await getDoc(doc(db, "leagueSettings", "main"));
+        if (cancelled) return;
+        if (snap.exists()) {
+          setIsCommissioner((snap.data().commissionerUids || []).includes(user.uid));
+        }
+      } catch (err) {
+        console.error("Commissioner check failed:", err);
+        if (!cancelled && attempt < 3) {
+          retryTimer = setTimeout(() => checkCommissioner(attempt + 1), 4000);
+        }
       }
     }
-    checkCommissioner();
+    checkCommissioner(1);
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
   }, [user]);
 
   if (loading) {
@@ -52,13 +80,24 @@ function App() {
       setMoreOpen((open) => !open);
       return;
     }
-    setActiveTab(tab);
+    goToTab(tab);
     setMoreOpen(false);
   }
 
   function handleMoreSelect(option) {
-    setActiveTab(option);
+    goToTab(option);
     setMoreOpen(false);
+  }
+
+  // Changing the address adds a history entry (so Back works); the
+  // hashchange listener above then updates the visible tab.
+  function goToTab(tab) {
+    const hash = hashForTab(tab);
+    if (window.location.hash === hash) {
+      setActiveTab(tab);
+    } else {
+      window.location.hash = hash;
+    }
   }
 
   return (

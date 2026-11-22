@@ -10,6 +10,7 @@ export const LeagueDataContext = createContext({
   scoresByPlayer: {},
   overrides: {},
   loading: true,
+  lastUpdated: null,
   refresh: async () => {},
 });
 

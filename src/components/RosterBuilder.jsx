@@ -8,11 +8,13 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { LoadError } from "./LoadError";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { InjuryDot, InjuryText } from "./Injury";
 import { FitText } from "./FitText";
 import { getInjuryInfo, isRuledOut } from "../lib/injury";
+import { isOnBye } from "../lib/bye";
 import { UsedPill } from "./Pills";
 import { Icon } from "./Icon";
 
@@ -212,11 +214,13 @@ function LockIcon() {
 }
 
 export function RosterBuilder({ team }) {
-  const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
+  const { week: currentWeek, loading: weekLoading, error: weekError, retry: retryWeek } = useCurrentWeek();
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [allLineups, setAllLineups] = useState([]);
   const [localSlots, setLocalSlots] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [pickerSlot, setPickerSlot] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortMode, setSortMode] = useState("az");
@@ -244,26 +248,35 @@ export function RosterBuilder({ team }) {
     }
   }, [currentWeek, selectedWeek]);
 
-  const { players: basePlayers, scoresByPlayer, loading: leagueLoading } = useLeagueData();
+  const { players: basePlayers, scoresByPlayer, loading: leagueLoading, refresh: refreshLeagueData } = useLeagueData();
   const players = useMemo(
     () =>
       basePlayers.map((p) => {
         const ls = scoresByPlayer[p.id];
-        return { ...p, projectedPoints: ls?.projectedPoints, weeklyPoints: ls?.weeklyPoints };
+        // Only trust a projection that was written for THIS week; an older
+        // one (from a previous week's sync) would be misleading.
+        const projection = ls?.projectedWeek === currentWeek ? ls.projectedPoints : undefined;
+        return { ...p, projectedPoints: projection, weeklyPoints: ls?.weeklyPoints };
       }),
-    [basePlayers, scoresByPlayer]
+    [basePlayers, scoresByPlayer, currentWeek]
   );
 
   useEffect(() => {
     async function loadLineups() {
       setLoading(true);
-      const q = query(collection(db, "lineups"), where("teamId", "==", team.id));
-      const snap = await getDocs(q);
-      setAllLineups(snap.docs.map((d) => d.data()));
+      setLoadError(false);
+      try {
+        const q = query(collection(db, "lineups"), where("teamId", "==", team.id));
+        const snap = await getDocs(q);
+        setAllLineups(snap.docs.map((d) => d.data()));
+      } catch (err) {
+        console.error("Failed to load lineups:", err);
+        setLoadError(true);
+      }
       setLoading(false);
     }
     loadLineups();
-  }, [team.id]);
+  }, [team.id, loadAttempt]);
 
   useEffect(() => {
     if (selectedWeek === null) return;
@@ -329,6 +342,9 @@ export function RosterBuilder({ team }) {
         next[existingIdx] = updated;
         return next;
       });
+      // Refresh the shared league data so Weekly/Detailed Scoring and
+      // Standings pick up this lineup right away (not up to a minute later).
+      refreshLeagueData();
       if (saveTokenRef.current === myToken) {
         setSaveStatus("saved");
         setTimeout(() => {
@@ -423,6 +439,10 @@ export function RosterBuilder({ team }) {
     return sortPickerPool(filtered, sortMode);
   }, [pickerSlot, players, searchTerm, localSlots, usedWeekByPlayer, sortMode]);
 
+  if (weekError) return <LoadError message="Couldn't load the current NFL week. Check your connection and try again." onRetry={retryWeek} />;
+
+  if (loadError) return <LoadError message="Couldn't load your lineup. Check your connection and try again." onRetry={() => setLoadAttempt((n) => n + 1)} />;
+
   if (weekLoading || loading || leagueLoading || selectedWeek === null) return <p>Loading your lineup...</p>;
 
   // Players in this lineup who are Out/IR and whose game hasn't started yet
@@ -431,6 +451,14 @@ export function RosterBuilder({ team }) {
     .map((pid) => players.find((p) => p.id === pid))
     .filter((p) => p && isRuledOut(p.injuryStatus) && !isGameStarted(p.kickoffTime))
     .map((p) => ({ id: p.id, name: p.name }));
+
+  // Same idea for a player whose team has a bye this week.
+  const byeWarnings = isReadOnly
+    ? []
+    : Object.values(localSlots)
+        .map((pid) => players.find((p) => p.id === pid))
+        .filter((p) => p && isOnBye(p))
+        .map((p) => ({ id: p.id, name: p.name }));
 
   const weekOptions = Array.from({ length: currentWeek }, (_, i) => i + 1);
   const pickerHasPlayer = pickerSlot !== null && Boolean(localSlots[pickerSlot]);
@@ -458,6 +486,28 @@ export function RosterBuilder({ team }) {
           >
             <Icon name="alert-triangle" style={{ fontSize: 18, flexShrink: 0 }} />
             <div>{w.name} is ruled out this week. Swap him before kickoff.</div>
+          </div>
+        ))}
+
+      {!isReadOnly &&
+        byeWarnings.map((w) => (
+          <div
+            key={w.id}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              padding: "10px 12px",
+              marginBottom: 8,
+              borderRadius: "var(--radius)",
+              background: "var(--bg-danger)",
+              color: "var(--text-danger)",
+              fontSize: 13,
+              lineHeight: 1.4,
+            }}
+          >
+            <Icon name="alert-triangle" style={{ fontSize: 18, flexShrink: 0 }} />
+            <div>{w.name} has a bye this week. Swap him before kickoff.</div>
           </div>
         ))}
 
@@ -679,6 +729,12 @@ export function RosterBuilder({ team }) {
                             )
                           )}
                         </span>
+                        {!isReadOnly && isOnBye(player) && (
+                          <>
+                            <span style={{ opacity: 0.75 }}>{" "}· </span>
+                            <span style={{ color: "var(--text-danger)", fontWeight: 500 }}>BYE</span>
+                          </>
+                        )}
                         {getInjuryInfo(player.injuryStatus) && (
                           <>
                             <span style={{ opacity: 0.75 }}>{" "}· </span>

@@ -57,24 +57,35 @@ function gameWindowActive(players) {
 export function LeagueDataProvider({ enabled, children }) {
   const [data, setData] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const rerunRef = useRef(false);
   const dataRef = useRef(EMPTY);
   const inflightRef = useRef(null);
   const lastLoadedRef = useRef(0);
 
   const refresh = useCallback(() => {
-    if (inflightRef.current) return inflightRef.current;
+    if (inflightRef.current) {
+      // A load is already running, but it may have started BEFORE whatever
+      // prompted this call (e.g. a lineup save). Queue one more load right
+      // after it so the caller ends up with fresh data.
+      rerunRef.current = true;
+      return inflightRef.current;
+    }
     const p = (async () => {
-      try {
-        const next = await fetchAll();
-        dataRef.current = next;
-        lastLoadedRef.current = Date.now();
-        setData(next);
-        setLoading(false);
-      } catch (err) {
-        console.error("League data refresh failed (keeping existing data):", err);
-      } finally {
-        inflightRef.current = null;
-      }
+      do {
+        rerunRef.current = false;
+        try {
+          const next = await fetchAll();
+          dataRef.current = next;
+          lastLoadedRef.current = Date.now();
+          setLastUpdated(new Date(lastLoadedRef.current));
+          setData(next);
+          setLoading(false);
+        } catch (err) {
+          console.error("League data refresh failed (keeping existing data):", err);
+        }
+      } while (rerunRef.current);
+      inflightRef.current = null;
     })();
     inflightRef.current = p;
     return p;
@@ -104,6 +115,6 @@ export function LeagueDataProvider({ enabled, children }) {
     };
   }, [enabled, refresh]);
 
-  const value = useMemo(() => ({ ...data, loading, refresh }), [data, loading, refresh]);
+  const value = useMemo(() => ({ ...data, loading, lastUpdated, refresh }), [data, loading, lastUpdated, refresh]);
   return <LeagueDataContext.Provider value={value}>{children}</LeagueDataContext.Provider>;
 }

@@ -8,6 +8,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { LoadError } from "./LoadError";
 
 // Looks up the signed-in owner's team, or lets them create one if they don't
 // have one yet. Calls onTeamReady(team) once a team exists.
@@ -17,21 +18,32 @@ export function TeamSetup({ user, onTeamReady }) {
   const [teamName, setTeamName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [lookupFailed, setLookupFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     async function findTeam() {
-      const q = query(collection(db, "teams"), where("ownerUid", "==", user.uid));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const docSnap = snap.docs[0];
-        const found = { id: docSnap.id, ...docSnap.data() };
-        setTeam(found);
-        onTeamReady?.(found);
+      setLoading(true);
+      setLookupFailed(false);
+      try {
+        const q = query(collection(db, "teams"), where("ownerUid", "==", user.uid));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docSnap = snap.docs[0];
+          const found = { id: docSnap.id, ...docSnap.data() };
+          setTeam(found);
+          onTeamReady?.(found);
+        }
+      } catch (err) {
+        // Don't fall through to the "name your team" form: that would let
+        // someone with an existing team accidentally create a second one.
+        console.error("Team lookup failed:", err);
+        setLookupFailed(true);
       }
       setLoading(false);
     }
     findTeam();
-  }, [user.uid]);
+  }, [user.uid, attempt]);
 
   async function createTeam(e) {
     e.preventDefault();
@@ -61,6 +73,10 @@ export function TeamSetup({ user, onTeamReady }) {
 
   if (loading) {
     return <p>Loading your team...</p>;
+  }
+
+  if (lookupFailed) {
+    return <LoadError message="Couldn't load your team. Check your connection and try again." onRetry={() => setAttempt((n) => n + 1)} />;
   }
 
   if (team) {

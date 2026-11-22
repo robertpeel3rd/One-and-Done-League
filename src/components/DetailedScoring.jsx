@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { LoadError } from "./LoadError";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { LivePill } from "./Pills";
+import { UpdatedAt } from "./UpdatedAt";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
@@ -51,9 +53,10 @@ function getStatLineParts(statLine) {
 }
 
 // Renders stat pills on exactly ONE line. Anything that doesn't fit
-// collapses into a "+N" pill. Fit is measured from an invisible copy of
+// collapses into a "+N" button; tapping it shows every pill (wrapping onto
+// extra lines), and tapping the row again collapses it. Fit is measured from an invisible copy of
 // all pills, so the visible row never wraps or jumps.
-function StatPills({ parts, pillStyle }) {
+function StatPills({ parts, pillStyle, expanded, onExpand }) {
   const containerRef = useRef(null);
   const measureRef = useRef(null);
   const [visibleCount, setVisibleCount] = useState(parts.length);
@@ -98,14 +101,29 @@ function StatPills({ parts, pillStyle }) {
     <div style={{ position: "relative", marginTop: 3 }}>
       <div
         ref={containerRef}
-        style={{ display: "flex", flexWrap: "nowrap", gap: 3, overflow: "hidden", whiteSpace: "nowrap" }}
+        style={
+          expanded
+            ? { display: "flex", flexWrap: "wrap", gap: 3 }
+            : { display: "flex", flexWrap: "nowrap", gap: 3, overflow: "hidden", whiteSpace: "nowrap" }
+        }
       >
-        {parts.slice(0, visibleCount).map((part, i) => (
+        {parts.slice(0, expanded ? parts.length : visibleCount).map((part, i) => (
           <span key={i} style={pillStyle}>{part}</span>
         ))}
-        {hidden > 0 && (
-          <span
+        {hidden > 0 && !expanded && (
+          <button
+            type="button"
+            aria-expanded="false"
+            aria-label={`Show ${hidden} more stats`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onExpand();
+            }}
             style={{
+              minHeight: 0,
+              cursor: "pointer",
+              font: "inherit",
+              fontSize: pillStyle.fontSize,
               ...pillStyle,
               background: "transparent",
               border: "0.5px solid var(--border-strong)",
@@ -114,7 +132,7 @@ function StatPills({ parts, pillStyle }) {
             }}
           >
             +{hidden}
-          </span>
+          </button>
         )}
       </div>
       <div
@@ -142,10 +160,21 @@ function StatPills({ parts, pillStyle }) {
 }
 
 export function DetailedScoring({ myTeamId }) {
-  const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
+  const { week: currentWeek, loading: weekLoading, error: weekError, retry: retryWeek } = useCurrentWeek();
   const ownerNames = useOwnerFirstNames();
   const { teams, players, lineups, scoresByPlayer, loading } = useLeagueData();
   const myTeamRef = useRef(null);
+  // Rows whose "+N" has been tapped open, keyed "teamId:slotIndex". Kept here
+  // (not inside each row) so data refreshes never collapse an open row.
+  const [openRows, setOpenRows] = useState(() => new Set());
+  function setRowOpen(key, open) {
+    setOpenRows((prev) => {
+      const next = new Set(prev);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
   const hasScrolledRef = useRef(false);
 
   const playerById = useMemo(() => {
@@ -208,6 +237,8 @@ export function DetailedScoring({ myTeamId }) {
     hasScrolledRef.current = true;
   }, [teamRows]);
 
+  if (weekError) return <LoadError message="Couldn't load the current NFL week. Check your connection and try again." onRetry={retryWeek} />;
+
   if (loading || weekLoading) return <p>Loading detailed scoring...</p>;
   if (teams.length === 0) return <p>No teams yet.</p>;
 
@@ -216,6 +247,7 @@ export function DetailedScoring({ myTeamId }) {
       <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
         Detailed Scoring for Week {currentWeek} — every player, every stat that counted.
       </p>
+      <UpdatedAt />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {teamRows.map(({ team, slotEntries, total }, i) => {
@@ -278,10 +310,14 @@ export function DetailedScoring({ myTeamId }) {
                   const isLive = s.player?.gameState === "in";
                   const isFinished = s.player?.gameCompleted === true;
                   const statParts = getStatLineParts(s.statLine);
+                  const rowKey = `${team.id}:${idx}`;
+                  const rowOpen = openRows.has(rowKey);
                   return (
                     <div
                       key={idx}
+                      onClick={rowOpen ? () => setRowOpen(rowKey, false) : undefined}
                       style={{
+                        cursor: rowOpen ? "pointer" : undefined,
                         padding: isLive ? "6px 12px 6px 9px" : "6px 12px",
                         borderTop: "0.5px solid var(--border)",
                         borderLeft: isLive ? "3px solid var(--text-success)" : "none",
@@ -301,6 +337,8 @@ export function DetailedScoring({ myTeamId }) {
                         {statParts.length > 0 && (
                           <StatPills
                             parts={statParts}
+                            expanded={rowOpen}
+                            onExpand={() => setRowOpen(rowKey, true)}
                             pillStyle={{
                               flexShrink: 0,
                               fontSize: 10,

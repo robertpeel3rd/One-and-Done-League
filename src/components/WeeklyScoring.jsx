@@ -1,15 +1,17 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { LoadError } from "./LoadError";
 import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { LivePill } from "./Pills";
+import { UpdatedAt } from "./UpdatedAt";
 import { Icon } from "./Icon";
 import { rankTeams } from "../lib/ranking";
 
 const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
 
 export function WeeklyScoring({ myTeamId }) {
-  const { week: currentWeek, loading: weekLoading } = useCurrentWeek();
+  const { week: currentWeek, loading: weekLoading, error: weekError, retry: retryWeek } = useCurrentWeek();
   const ownerNames = useOwnerFirstNames();
   const [selectedWeek, setSelectedWeek] = useState(null);
   const { teams, players, lineups, scoresByPlayer, loading } = useLeagueData();
@@ -69,6 +71,8 @@ export function WeeklyScoring({ myTeamId }) {
     });
   }, [teams, lineups, scoresByPlayer, playerById, selectedWeek, currentWeek]);
 
+  if (weekError) return <LoadError message="Couldn't load the current NFL week. Check your connection and try again." onRetry={retryWeek} />;
+
   if (loading || weekLoading || selectedWeek === null) return <p>Loading weekly scoring...</p>;
   if (teams.length === 0) return <p>No teams yet.</p>;
 
@@ -90,6 +94,7 @@ export function WeeklyScoring({ myTeamId }) {
         Weekly Points for Week {selectedWeek}
         {selectedWeek === currentWeek ? ", updated automatically." : "."}
       </p>
+      {selectedWeek === currentWeek && <UpdatedAt />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {teamRows.map(({ team, slotEntries, total, tiebreakerWin }, i) => {

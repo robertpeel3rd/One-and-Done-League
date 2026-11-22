@@ -241,6 +241,9 @@ async function main() {
 
       if (projectedPoints !== null) {
         docData.projectedPoints = projectedPoints;
+        // Which week this projection is for, so the app can ignore a
+        // projection left over from an earlier week.
+        docData.projectedWeek = week;
       }
 
       batch.set(ref, docData, { merge: true });
