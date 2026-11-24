@@ -1,0 +1,25 @@
+name: Standings history
+
+# Manual, read-only. Computes League Points and rank by week for the Standings Race chart, from
+# current league data and shows them in the run's Summary page.
+on:
+  workflow_dispatch:
+    inputs:
+      through_week:
+        description: "Last week to include (blank = completed weeks only)"
+        required: false
+        default: ""
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install firebase-admin
+      - run: node scripts/standingsHistory.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          THROUGH_WEEK: ${{ inputs.through_week }}
