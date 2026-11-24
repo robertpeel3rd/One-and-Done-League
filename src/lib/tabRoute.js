@@ -6,6 +6,7 @@ const TAB_SLUGS = {
   "Weekly Scoring": "weekly-scoring",
   "Detailed Scoring": "detailed-scoring",
   "My Lineup": "my-lineup",
+  "Standings Race": "standings-race",
   "Used Players": "used-players",
   About: "about",
   Legend: "legend",

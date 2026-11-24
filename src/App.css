@@ -25,6 +25,15 @@ html, body {
   --bg-danger: #fbeaea;
   --bg-success: #e7f5ec;
   --text-success: #1e7d42;
+  /* Chart series colors: fixed order, checked for colorblind separation. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,6 +52,14 @@ html, body {
     --bg-danger: #3a1f1f;
     --bg-success: #1c3324;
     --text-success: #7fce9c;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #0ca30c;
+    --series-7: #9085e9;
+    --series-8: #e66767;
   }
 }
 

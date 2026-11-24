@@ -4,8 +4,9 @@ import { useCurrentWeek } from "../lib/useCurrentWeek";
 import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { rankTeams, leaguePointsFromRanking } from "../lib/ranking";
+import { Icon } from "./Icon";
 
-export function Standings({ myTeamId }) {
+export function Standings({ myTeamId, onOpenRace }) {
   const { week: currentWeek, loading: weekLoading, error: weekError, retry: retryWeek } = useCurrentWeek();
   const ownerNames = useOwnerFirstNames();
   const [mode, setMode] = useState("current");
@@ -182,6 +183,25 @@ export function Standings({ myTeamId }) {
           );
         })}
       </div>
+
+      {onOpenRace && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+          <button
+            onClick={onOpenRace}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              borderRadius: 999,
+              fontWeight: 600,
+              color: "var(--text-accent)",
+              borderColor: "var(--text-accent)",
+            }}
+          >
+            <Icon name="player-play" /> Standings Race
+          </button>
+        </div>
+      )}
     </div>
   );
 }

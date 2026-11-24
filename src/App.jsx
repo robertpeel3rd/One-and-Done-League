@@ -6,6 +6,7 @@ import { useAuth } from "./lib/useAuth";
 import { TeamSetup } from "./components/TeamSetup";
 import { RosterBuilder } from "./components/RosterBuilder";
 import { Standings } from "./components/Standings";
+import { StandingsRace } from "./components/StandingsRace";
 import { WeeklyScoring } from "./components/WeeklyScoring";
 import { DetailedScoring } from "./components/DetailedScoring";
 import { UsedPlayers } from "./components/UsedPlayers";
@@ -73,7 +74,8 @@ function App() {
 
   const moreOptions = isCommissioner ? [...MORE_OPTIONS, "Commissioner"] : MORE_OPTIONS;
   const isMoreActive = moreOptions.includes(activeTab);
-  const displayTab = isMoreActive ? "More" : activeTab;
+  // The Standings Race page is opened from Standings, so Standings stays lit.
+  const displayTab = isMoreActive ? "More" : activeTab === "Standings Race" ? "Standings" : activeTab;
 
   function handleNavSelect(tab) {
     if (tab === "More") {
@@ -127,7 +129,8 @@ function App() {
 
             {team && (
               <div style={{ marginTop: "1.25rem" }}>
-                {activeTab === "Standings" && <Standings myTeamId={team.id} />}
+                {activeTab === "Standings" && <Standings myTeamId={team.id} onOpenRace={() => goToTab("Standings Race")} />}
+                {activeTab === "Standings Race" && <StandingsRace myTeamId={team.id} onBack={() => goToTab("Standings")} />}
                 {activeTab === "Weekly Scoring" && <WeeklyScoring myTeamId={team.id} />}
                 {activeTab === "Detailed Scoring" && <DetailedScoring myTeamId={team.id} />}
                 {activeTab === "My Lineup" && <RosterBuilder team={team} />}
