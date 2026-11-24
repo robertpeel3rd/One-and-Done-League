@@ -5,6 +5,8 @@ import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { rankTeams, leaguePointsFromRanking } from "../lib/ranking";
 import { Icon } from "./Icon";
+import { ShareButton } from "./ShareButton";
+import { buildShareImage, shareStamp } from "../lib/shareCard";
 
 export function Standings({ myTeamId, onOpenRace }) {
   const { week: currentWeek, loading: weekLoading, error: weekError, retry: retryWeek } = useCurrentWeek();
@@ -184,8 +186,8 @@ export function Standings({ myTeamId, onOpenRace }) {
         })}
       </div>
 
-      {onOpenRace && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12 }}>
+        {onOpenRace ? (
           <button
             onClick={onOpenRace}
             style={{
@@ -200,8 +202,34 @@ export function Standings({ myTeamId, onOpenRace }) {
           >
             <Icon name="player-play" /> Standings Race
           </button>
-        </div>
-      )}
+        ) : (
+          <span />
+        )}
+        <ShareButton
+          title="One & Done League Standings"
+          filename={`one-and-done-standings-${mode === "current" ? "week-" + (currentWeek - 1) : "live"}.png`}
+          makeImage={() =>
+            buildShareImage({
+              title: "Standings",
+              subtitle:
+                mode === "current"
+                  ? currentWeek > 1
+                    ? `League Points through Week ${currentWeek - 1}`
+                    : "No completed weeks yet"
+                  : `Live League Points · Week ${currentWeek} in progress`,
+              rows: standings.map((t, i) => ({
+                rank: i + 1,
+                name: t.name,
+                owner: ownerNames[t.ownerUid] || "",
+                value: t.leaguePoints,
+              })),
+              kind: "points",
+              host: window.location.host,
+              when: shareStamp(),
+            })
+          }
+        />
+      </div>
     </div>
   );
 }

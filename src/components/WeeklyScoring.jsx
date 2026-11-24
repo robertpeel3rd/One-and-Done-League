@@ -5,6 +5,8 @@ import { useLeagueData } from "../lib/leagueDataContext";
 import { useOwnerFirstNames } from "../lib/useOwnerFirstNames";
 import { LivePill } from "./Pills";
 import { UpdatedAt } from "./UpdatedAt";
+import { ShareButton } from "./ShareButton";
+import { buildShareImage, shareStamp } from "../lib/shareCard";
 import { Icon } from "./Icon";
 import { rankTeams } from "../lib/ranking";
 
@@ -236,7 +238,30 @@ export function WeeklyScoring({ myTeamId }) {
           );
         })}
       </div>
-      {selectedWeek === currentWeek && <UpdatedAt />}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12 }}>
+        {selectedWeek === currentWeek ? <UpdatedAt style={{ margin: 0 }} /> : <span />}
+        <ShareButton
+          title="One & Done League Weekly Scoring"
+          filename={`one-and-done-weekly-week-${selectedWeek}.png`}
+          makeImage={() =>
+            buildShareImage({
+              title: "Weekly Scoring",
+              subtitle: `Weekly Points · Week ${selectedWeek}`,
+              rows: teamRows.map(({ team, total, tiebreakerWin }, i) => ({
+                rank: i + 1,
+                name: team.name,
+                owner: ownerNames[team.ownerUid] || "",
+                value: total,
+                tag: tiebreakerWin ? "TIEBREAKER" : "",
+              })),
+              kind: "score",
+              dividerAfter: cutoff > 0 ? cutoff : null,
+              host: window.location.host,
+              when: shareStamp(),
+            })
+          }
+        />
+      </div>
     </div>
   );
 }

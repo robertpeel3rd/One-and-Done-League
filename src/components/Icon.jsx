@@ -20,6 +20,7 @@ const ICONS = {
   "player-play": "<path d=\"M7 4v16l13 -8l-13 -8\" />",
   "player-pause": "<path d=\"M6 5m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z\" /> <path d=\"M14 5m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z\" />",
   "arrow-left": "<path d=\"M5 12l14 0\" /> <path d=\"M5 12l6 6\" /> <path d=\"M5 12l6 -6\" />",
+  "share": "<path d=\"M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2v-6\" /> <path d=\"M12 3v13\" /> <path d=\"M8 7l4 -4l4 4\" />",
   "chevron-up": "<path d=\"M6 15l6 -6l6 6\" />",
   "chevron-down": "<path d=\"M6 9l6 6l6 -6\" />",
 };
