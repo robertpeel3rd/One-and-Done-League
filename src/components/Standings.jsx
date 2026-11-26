@@ -81,10 +81,10 @@ export function Standings({ myTeamId, onOpenRace }) {
   return (
     <div style={{ maxWidth: 480 }}>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <button onClick={() => setMode("current")} style={{ fontWeight: mode === "current" ? 700 : 400 }}>
+        <button className="btn-compact" onClick={() => setMode("current")} style={{ fontWeight: mode === "current" ? 700 : 400 }}>
           Current Standings
         </button>
-        <button onClick={() => setMode("live")} style={{ fontWeight: mode === "live" ? 700 : 400 }}>
+        <button className="btn-compact" onClick={() => setMode("live")} style={{ fontWeight: mode === "live" ? 700 : 400 }}>
           Live Standings
         </button>
       </div>
@@ -189,11 +189,9 @@ export function Standings({ myTeamId, onOpenRace }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12 }}>
         {onOpenRace ? (
           <button
+            className="btn-compact"
             onClick={onOpenRace}
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
               borderRadius: 999,
               fontWeight: 600,
               color: "var(--text-accent)",

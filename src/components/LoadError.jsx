@@ -11,7 +11,7 @@ export function LoadError({ message, onRetry }) {
       }}
     >
       <p style={{ margin: "0 0 0.6rem", fontSize: 14 }}>{message}</p>
-      {onRetry && <button onClick={onRetry}>Try again</button>}
+      {onRetry && <button className="btn-compact" onClick={onRetry}>Try again</button>}
     </div>
   );
 }

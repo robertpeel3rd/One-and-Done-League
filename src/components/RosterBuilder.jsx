@@ -514,6 +514,7 @@ export function RosterBuilder({ team }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
         <select
+          className="select-compact"
           value={selectedWeek}
           onChange={(e) => {
             flushPendingSave();
@@ -566,6 +567,7 @@ export function RosterBuilder({ team }) {
                         style={{
                           fontSize: 12,
                           padding: "4px 10px",
+                          minHeight: 30,
                           borderRadius: 999,
                           background: active ? "var(--text-accent)" : "var(--surface-2)",
                           color: active ? "var(--surface-2)" : "var(--text-accent)",
@@ -622,12 +624,14 @@ export function RosterBuilder({ team }) {
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
+                    className="btn-compact"
                     onClick={closePicker}
                     style={{ flex: 1, color: "var(--text-accent)", border: "1px solid var(--text-accent)", background: "var(--surface-2)" }}
                   >
                     Cancel
                   </button>
                   <button
+                    className="btn-compact"
                     onClick={() => {
                       clearSlot(idx);
                       closePicker();
@@ -691,11 +695,13 @@ export function RosterBuilder({ team }) {
                     flex: 1,
                     minWidth: 0,
                     textAlign: "left",
-                    // Keep the row exactly as tall as before (two body-height
-                    // lines + 1px) and center the tighter text inside it.
-                    ...(player
-                      ? { display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "calc(1.45rem * 2 + 1px)" }
-                      : {}),
+                    // Rows are as tall as their two lines of text (about 48px
+                    // with padding, like Weekly Scoring). Empty slots get the
+                    // same text height so they match filled rows.
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    minHeight: 32,
                   }}
                 >
                   {player ? (

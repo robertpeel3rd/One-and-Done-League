@@ -87,6 +87,36 @@ button {
   cursor: pointer;
 }
 
+/* Compact buttons: opt-in with className="btn-compact" so primary actions
+   (sign in, create team, commissioner forms) keep the full 44px tap size. */
+.btn-compact {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Compact picker (select): same height, but the text stays 16px because
+   iPhone Safari zooms the page when a picker with smaller text is tapped. */
+.select-compact {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+/* Paragraph text: the base style hands every element a fixed line height
+   (1.45 x the page font size, about 23px), which looks double-spaced on small
+   text that wraps. Tighten the space BETWEEN wrapped lines, and give back the
+   difference as padding above and below, so a one-line paragraph keeps exactly
+   the height (and the space around it) it had before. */
+p {
+  line-height: 1.4;
+  padding-block: max(0px, calc((1.45rem - 1.4em) / 2));
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;

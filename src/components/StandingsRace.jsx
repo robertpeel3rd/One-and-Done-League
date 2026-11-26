@@ -74,10 +74,7 @@ export function StandingsRace({ myTeamId, onBack }) {
 
   const header = (
     <>
-      <button
-        onClick={onBack}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, minHeight: 0, padding: "6px 12px" }}
-      >
+      <button className="btn-compact" onClick={onBack} style={{ marginBottom: 12 }}>
         <Icon name="arrow-left" /> Standings
       </button>
       <h2 style={{ fontSize: 20, margin: "0 0 4px", fontWeight: 600 }}>Standings Race</h2>
@@ -86,7 +83,7 @@ export function StandingsRace({ myTeamId, onBack }) {
 
   if (!history) {
     return (
-      <div style={{ maxWidth: 480 }}>
+      <div style={{ maxWidth: 480, textAlign: "left" }}>
         {header}
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
           The race starts once Week 1 is complete.
@@ -176,15 +173,15 @@ export function StandingsRace({ myTeamId, onBack }) {
     : [];
 
   const modeBtn = (key, label) => (
-    <button onClick={() => setMode(key)} aria-pressed={mode === key} style={{ fontWeight: mode === key ? 700 : 400 }}>
+    <button className="btn-compact" onClick={() => setMode(key)} aria-pressed={mode === key} style={{ fontWeight: mode === key ? 700 : 400 }}>
       {label}
     </button>
   );
 
   return (
-    <div style={{ maxWidth: 480 }}>
+    <div style={{ maxWidth: 480, textAlign: "left" }}>
       {header}
-      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0, marginBottom: 8 }}>
         How the standings changed, week by week, through Week {weeksDone}. Press Play to replay the season.
         {mode === "rank" ? " The dashed line marks the in-the-points cutoff." : ""}
       </p>
@@ -292,7 +289,7 @@ export function StandingsRace({ myTeamId, onBack }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-        <button onClick={togglePlay} style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 96, justifyContent: "center", fontWeight: 600 }}>
+        <button className="btn-compact" onClick={togglePlay} style={{ width: 96, fontWeight: 600 }}>
           <Icon name={playing ? "player-pause" : "player-play"} />
           {playing ? "Pause" : t !== null && tNow >= last ? "Replay" : "Play"}
         </button>

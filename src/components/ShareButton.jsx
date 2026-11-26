@@ -38,8 +38,8 @@ export function ShareButton({ makeImage, filename, title }) {
         aria-label="Share as image"
         title="Share as image"
         style={{
-          width: 38,
-          height: 38,
+          width: 36,
+          height: 36,
           minHeight: 0,
           padding: 0,
           borderRadius: "50%",
@@ -49,7 +49,7 @@ export function ShareButton({ makeImage, filename, title }) {
           background: "var(--text-accent)",
           color: "var(--surface-2)",
           border: "none",
-          fontSize: 19,
+          fontSize: 18,
           opacity: busy ? 0.6 : 1,
         }}
       >

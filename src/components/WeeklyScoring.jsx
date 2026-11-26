@@ -85,7 +85,7 @@ export function WeeklyScoring({ myTeamId }) {
     <div style={{ maxWidth: 480 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Week</span>
-        <select value={selectedWeek} onChange={(e) => { setSelectedWeek(Number(e.target.value)); setExpandedTeamId(null); }}>
+        <select className="select-compact" value={selectedWeek} onChange={(e) => { setSelectedWeek(Number(e.target.value)); setExpandedTeamId(null); }}>
           {weekOptions.map((w) => (
             <option key={w} value={w}>{w}</option>
           ))}
